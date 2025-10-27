@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Registro de Cosecha{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    Editar Registro de Cosecha
+                </h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="editarForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="fecha" class="form-label">
+                                <i class="fas fa-calendar me-1"></i>
+                                Fecha *
+                            </label>
+                            <input type="date" class="form-control" id="fecha" name="fecha" 
+                                   value="{{ registro.fecha.strftime('%Y-%m-%d') }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="viaje" class="form-label">
+                                <i class="fas fa-truck me-1"></i>
+                                Viaje *
+                            </label>
+                            <input type="text" class="form-control" id="viaje" name="viaje" 
+                                   value="{{ registro.viaje }}" placeholder="Ingrese el número o nombre del viaje" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="semana" class="form-label">
+                                <i class="fas fa-calendar-week me-1"></i>
+                                Semana *
+                            </label>
+                            <input type="number" class="form-control" id="semana" name="semana" 
+                                   value="{{ registro.semana }}" min="1" max="53" placeholder="1-53" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="tallos" class="form-label">
+                                <i class="fas fa-leaf me-1"></i>
+                                Tallos *
+                            </label>
+                            <select class="form-select" id="tallos" name="tallos" required>
+                                <option value="">Seleccione cantidad de tallos</option>
+                                <option value="10" {% if registro.tallos == 10 %}selected{% endif %}>10 tallos</option>
+                                <option value="15" {% if registro.tallos == 15 %}selected{% endif %}>15 tallos</option>
+                                <option value="25" {% if registro.tallos == 25 %}selected{% endif %}>25 tallos</option>
+                                <option value="30" {% if registro.tallos == 30 %}selected{% endif %}>30 tallos</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="mallas" class="form-label">
+                                <i class="fas fa-th me-1"></i>
+                                Mallas *
+                            </label>
+                            <input type="number" class="form-control" id="mallas" name="mallas" 
+                                   value="{{ registro.mallas }}" min="1" placeholder="Número de mallas" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="modulo" class="form-label">
+                                <i class="fas fa-cube me-1"></i>
+                                Módulo *
+                            </label>
+                            <select class="form-select" id="modulo" name="modulo" required>
+                                <option value="">Seleccione un módulo</option>
+                                {% for mod in modulos %}
+                                <option value="{{ mod }}" {% if mod == registro.modulo %}selected{% endif %}>{{ mod }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Módulos cargados desde modulos.csv
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="variedad" class="form-label">
+                                <i class="fas fa-seedling me-1"></i>
+                                Variedad *
+                            </label>
+                            <select class="form-select" id="variedad" name="variedad" required>
+                                <option value="">Seleccione una variedad</option>
+                                {% for var in variedades %}
+                                <option value="{{ var }}" {% if var == registro.variedad %}selected{% endif %}>{{ var }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Variedades cargadas desde variedades.csv
+                            </small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="responsable" class="form-label">
+                                <i class="fas fa-user me-1"></i>
+                                Responsable *
+                            </label>
+                            <select class="form-select" id="responsable" name="responsable" required>
+                                <option value="">Seleccione un responsable</option>
+                                {% for resp in responsables %}
+                                <option value="{{ resp }}" {% if resp == registro.responsable %}selected{% endif %}>{{ resp }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Responsables cargados desde responsables.csv
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-calculator me-1"></i>
+                                Total de Tallos
+                            </label>
+                            <input type="text" class="form-control" id="totalTallos" readonly 
+                                   value="{{ registro.total_tallos }}">
+                            <small class="form-text text-muted">
+                                Se calcula automáticamente: Tallos × Mallas
+                            </small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-clock me-1"></i>
+                                Hora Original
+                            </label>
+                            <input type="text" class="form-control" readonly 
+                                   value="{{ registro.hora.strftime('%H:%M:%S') }}">
+                            <small class="form-text text-muted">
+                                La hora original se mantiene sin cambios
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Registro creado:</strong> {{ registro.fecha_creacion.strftime('%d/%m/%Y a las %H:%M:%S') }}
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('index') }}" class="btn btn-secondary me-md-2">
+                            <i class="fas fa-arrow-left me-2"></i>
+                            Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            Actualizar Registro
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Función para calcular el total de tallos
+    function calcularTotal() {
+        const tallos = parseInt(document.getElementById('tallos').value) || 0;
+        const mallas = parseInt(document.getElementById('mallas').value) || 0;
+        const total = tallos * mallas;
+        
+        document.getElementById('totalTallos').value = total > 0 ? total : '';
+    }
+
+    // Eventos para calcular total automáticamente
+    document.getElementById('tallos').addEventListener('change', calcularTotal);
+    document.getElementById('mallas').addEventListener('input', calcularTotal);
+
+    // Validación del formulario
+    document.getElementById('editarForm').addEventListener('submit', function(e) {
+        const tallos = document.getElementById('tallos').value;
+        const mallas = document.getElementById('mallas').value;
+        
+        if (!tallos || !mallas) {
+            e.preventDefault();
+            alert('Por favor, complete todos los campos obligatorios.');
+            return false;
+        }
+        
+        if (parseInt(mallas) <= 0) {
+            e.preventDefault();
+            alert('El número de mallas debe ser mayor que 0.');
+            return false;
+        }
+    });
+</script>
+{% endblock %}
