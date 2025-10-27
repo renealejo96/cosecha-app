@@ -9,11 +9,13 @@ app = Flask(__name__)
 # Configuración para producción usando variables de entorno
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'tu_clave_secreta_aqui')
 
-# Configurar DATABASE_URL para psycopg3
+# Configurar DATABASE_URL para psycopg2
 database_url = os.environ.get('DATABASE_URL', 'postgresql://postgres:admin@localhost:5432/pyganflor')
-# Convertir postgresql:// a postgresql+psycopg:// para psycopg3
+# Forzar el uso de psycopg2 dialect
 if database_url.startswith('postgresql://'):
-    database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+    database_url = database_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+elif database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql+psycopg2://', 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
