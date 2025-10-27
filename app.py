@@ -1,8 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 import csv
+import pandas as pd
+from io import BytesIO
 
 app = Flask(__name__)
 
@@ -272,6 +274,69 @@ def reportes():
                          total_tallos=total_tallos,
                          total_mallas=total_mallas,
                          variedades_unicas=variedades_unicas)
+
+@app.route('/exportar_excel')
+def exportar_excel():
+    """Exportar todos los registros de cosecha a un archivo Excel"""
+    try:
+        # Obtener todos los registros ordenados por fecha (más recientes primero)
+        registros = RegistroCosecha.query.order_by(RegistroCosecha.fecha.desc()).all()
+        
+        # Convertir a lista de diccionarios
+        data = []
+        for registro in registros:
+            data.append({
+                'ID': registro.id,
+                'Fecha': registro.fecha.strftime('%Y-%m-%d'),
+                'Variedad': registro.variedad,
+                'Grado': registro.grado,
+                'Tallos': registro.tallos,
+                'Mallas': registro.mallas,
+                'Observaciones': registro.observaciones or ''
+            })
+        
+        # Crear DataFrame de pandas
+        df = pd.DataFrame(data)
+        
+        # Crear archivo Excel en memoria
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            # Hoja con todos los datos
+            df.to_excel(writer, sheet_name='Registros de Cosecha', index=False)
+            
+            # Hoja con resumen por variedad
+            if not df.empty:
+                resumen = df.groupby('Variedad').agg({
+                    'Tallos': 'sum',
+                    'Mallas': 'sum',
+                    'ID': 'count'
+                }).rename(columns={'ID': 'Total Registros'})
+                resumen.to_excel(writer, sheet_name='Resumen por Variedad')
+                
+                # Hoja con resumen por fecha
+                resumen_fecha = df.groupby('Fecha').agg({
+                    'Tallos': 'sum',
+                    'Mallas': 'sum',
+                    'ID': 'count'
+                }).rename(columns={'ID': 'Total Registros'})
+                resumen_fecha.to_excel(writer, sheet_name='Resumen por Fecha')
+        
+        output.seek(0)
+        
+        # Nombre del archivo con fecha actual
+        fecha_actual = datetime.now().strftime('%Y%m%d_%H%M%S')
+        nombre_archivo = f'cosecha_registros_{fecha_actual}.xlsx'
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=nombre_archivo
+        )
+        
+    except Exception as e:
+        flash(f'Error al exportar: {str(e)}', 'error')
+        return redirect(url_for('reportes'))
 
 if __name__ == '__main__':
     # Crear las tablas si no existen

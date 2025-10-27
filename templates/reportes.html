@@ -41,6 +41,19 @@
                 </a>
             </div>
         </form>
+        
+        <!-- Botón de Exportar a Excel -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <a href="{{ url_for('exportar_excel') }}" class="btn btn-success">
+                    <i class="fas fa-file-excel me-2"></i>
+                    Exportar todos los datos a Excel
+                </a>
+                <small class="text-muted ms-2">
+                    Se descargarán TODOS los registros (no solo los filtrados)
+                </small>
+            </div>
+        </div>
     </div>
 </div>
 
