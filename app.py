@@ -8,7 +8,14 @@ app = Flask(__name__)
 
 # Configuración para producción usando variables de entorno
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'tu_clave_secreta_aqui')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://postgres:admin@localhost:5432/pyganflor')
+
+# Configurar DATABASE_URL para psycopg3
+database_url = os.environ.get('DATABASE_URL', 'postgresql://postgres:admin@localhost:5432/pyganflor')
+# Convertir postgresql:// a postgresql+psycopg:// para psycopg3
+if database_url.startswith('postgresql://'):
+    database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
