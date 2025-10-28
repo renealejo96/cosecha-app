@@ -288,11 +288,15 @@ def exportar_excel():
             data.append({
                 'ID': registro.id,
                 'Fecha': registro.fecha.strftime('%Y-%m-%d'),
+                'Hora': registro.hora.strftime('%H:%M:%S'),
+                'Viaje': registro.viaje,
+                'Semana': registro.semana,
                 'Variedad': registro.variedad,
-                'Grado': registro.grado,
-                'Tallos': registro.tallos,
-                'Mallas': registro.mallas,
-                'Observaciones': registro.observaciones or ''
+                'Módulo': registro.modulo,
+                'Tallos por Malla': registro.tallos,
+                'Cantidad Mallas': registro.mallas,
+                'Total Tallos': registro.total_tallos,
+                'Responsable': registro.responsable
             })
         
         # Crear DataFrame de pandas
@@ -307,16 +311,16 @@ def exportar_excel():
             # Hoja con resumen por variedad
             if not df.empty:
                 resumen = df.groupby('Variedad').agg({
-                    'Tallos': 'sum',
-                    'Mallas': 'sum',
+                    'Total Tallos': 'sum',
+                    'Cantidad Mallas': 'sum',
                     'ID': 'count'
                 }).rename(columns={'ID': 'Total Registros'})
                 resumen.to_excel(writer, sheet_name='Resumen por Variedad')
                 
                 # Hoja con resumen por fecha
                 resumen_fecha = df.groupby('Fecha').agg({
-                    'Tallos': 'sum',
-                    'Mallas': 'sum',
+                    'Total Tallos': 'sum',
+                    'Cantidad Mallas': 'sum',
                     'ID': 'count'
                 }).rename(columns={'ID': 'Total Registros'})
                 resumen_fecha.to_excel(writer, sheet_name='Resumen por Fecha')
