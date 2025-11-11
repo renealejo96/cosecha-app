@@ -1,12 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import csv
 import pandas as pd
 from io import BytesIO
+import pytz
 
 app = Flask(__name__)
+
+# Configuración de zona horaria (Colombia/Perú UTC-5)
+ZONA_HORARIA = pytz.timezone('America/Bogota')
 
 # Configuración para producción usando variables de entorno
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'tu_clave_secreta_aqui')
@@ -38,6 +42,16 @@ class RegistroCosecha(db.Model):
     hora = db.Column(db.Time, nullable=False)
     responsable = db.Column(db.String(100), nullable=False)
     fecha_creacion = db.Column(db.DateTime, default=datetime.now)
+
+    def get_hora_local(self):
+        """Convertir hora a zona horaria local"""
+        # Combinar fecha y hora
+        dt_utc = datetime.combine(self.fecha, self.hora)
+        # Asumir que está en UTC
+        dt_utc = pytz.utc.localize(dt_utc)
+        # Convertir a zona horaria local
+        dt_local = dt_utc.astimezone(ZONA_HORARIA)
+        return dt_local.time()
 
     def __repr__(self):
         return f'<RegistroCosecha {self.id}>'

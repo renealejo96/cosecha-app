@@ -51,7 +51,7 @@
                                 <strong class="text-success">{{ registro.total_tallos }}</strong>
                             </td>
                             <td>{{ registro.variedad }}</td>
-                            <td>{{ registro.hora.strftime('%H:%M') }}</td>
+                            <td>{{ registro.get_hora_local().strftime('%H:%M') }}</td>
                             <td>{{ registro.responsable }}</td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
