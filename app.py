@@ -37,7 +37,7 @@ class RegistroCosecha(db.Model):
     variedad = db.Column(db.String(100), nullable=False)
     hora = db.Column(db.Time, nullable=False)
     responsable = db.Column(db.String(100), nullable=False)
-    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.now)
 
     def __repr__(self):
         return f'<RegistroCosecha {self.id}>'
@@ -229,10 +229,13 @@ def reportes():
         fecha_desde_dt = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
         fecha_hasta_dt = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
     
+    # Para incluir TODO el día final, agregar un día y usar < en lugar de <=
+    fecha_hasta_inclusiva = fecha_hasta_dt + timedelta(days=1)
+    
     # Consulta base con filtro de fechas
     query_base = RegistroCosecha.query.filter(
         RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha <= fecha_hasta_dt
+        RegistroCosecha.fecha < fecha_hasta_inclusiva
     )
     
     # Resumen por variedad
@@ -244,7 +247,7 @@ def reportes():
         func.avg(RegistroCosecha.total_tallos).label('promedio_tallos')
     ).filter(
         RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha <= fecha_hasta_dt
+        RegistroCosecha.fecha < fecha_hasta_inclusiva
     ).group_by(RegistroCosecha.variedad).order_by(
         func.sum(RegistroCosecha.total_tallos).desc()
     ).all()
@@ -253,17 +256,17 @@ def reportes():
     total_registros = query_base.count()
     total_tallos = db.session.query(func.sum(RegistroCosecha.total_tallos)).filter(
         RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha <= fecha_hasta_dt
+        RegistroCosecha.fecha < fecha_hasta_inclusiva
     ).scalar() or 0
     
     total_mallas = db.session.query(func.sum(RegistroCosecha.mallas)).filter(
         RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha <= fecha_hasta_dt
+        RegistroCosecha.fecha < fecha_hasta_inclusiva
     ).scalar() or 0
     
     variedades_unicas = db.session.query(func.count(func.distinct(RegistroCosecha.variedad))).filter(
         RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha <= fecha_hasta_dt
+        RegistroCosecha.fecha < fecha_hasta_inclusiva
     ).scalar() or 0
     
     return render_template('reportes.html',
