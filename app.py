@@ -10,7 +10,7 @@ import pytz
 app = Flask(__name__)
 
 # Configuración de zona horaria (Ecuador UTC-5)
-ZONA_HORARIA = pytz.timezone('America/Ecuador')
+ZONA_HORARIA = pytz.timezone('America/Guayaquil')
 
 # Configuración para producción usando variables de entorno
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'tu_clave_secreta_aqui')
