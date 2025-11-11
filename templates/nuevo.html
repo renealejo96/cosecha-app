@@ -27,8 +27,12 @@
                                 <i class="fas fa-truck me-1"></i>
                                 Viaje *
                             </label>
-                            <input type="text" class="form-control" id="viaje" name="viaje" 
-                                   placeholder="Ingrese el número o nombre del viaje" required>
+                            <select class="form-select" id="viaje" name="viaje" required>
+                                <option value="">Seleccione el viaje</option>
+                                {% for i in range(1, 18) %}
+                                <option value="{{ i }}">{{ i }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
 
@@ -36,10 +40,13 @@
                         <div class="col-md-6 mb-3">
                             <label for="semana" class="form-label">
                                 <i class="fas fa-calendar-week me-1"></i>
-                                Semana *
+                                Semana (Automático)
                             </label>
-                            <input type="number" class="form-control" id="semana" name="semana" 
-                                   min="1" max="53" placeholder="1-53" required>
+                            <input type="number" class="form-control bg-light" id="semana" name="semana" 
+                                   min="1" max="53" readonly required>
+                            <small class="form-text text-muted">
+                                Se calcula automáticamente desde la fecha
+                            </small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="tallos" class="form-label">
@@ -158,6 +165,25 @@
 
 {% block scripts %}
 <script>
+    // Función para calcular la semana ISO
+    function getWeekNumber(date) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
+
+    // Función para actualizar la semana basada en la fecha seleccionada
+    function actualizarSemana() {
+        const fechaInput = document.getElementById('fecha');
+        if (fechaInput.value) {
+            const fecha = new Date(fechaInput.value + 'T00:00:00');
+            const semana = getWeekNumber(fecha);
+            document.getElementById('semana').value = semana;
+        }
+    }
+
     // Función para actualizar la hora actual
     function actualizarHora() {
         const now = new Date();
@@ -180,6 +206,12 @@
 
     // Establecer fecha actual por defecto
     document.getElementById('fecha').valueAsDate = new Date();
+    
+    // Calcular semana inicial
+    actualizarSemana();
+
+    // Actualizar semana cuando cambie la fecha
+    document.getElementById('fecha').addEventListener('change', actualizarSemana);
 
     // Actualizar hora cada segundo
     actualizarHora();

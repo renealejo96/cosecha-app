@@ -57,6 +57,7 @@
     </div>
 </div>
 
+{% if mostrar_resultados %}
 <!-- Estadísticas Generales -->
 <div class="row mb-4">
     <div class="col-md-3">
@@ -213,28 +214,19 @@
         Período: {{ fecha_desde }} al {{ fecha_hasta }}
     </small>
 </div>
+{% else %}
+<!-- Mensaje cuando no hay filtro aplicado -->
+<div class="alert alert-info text-center">
+    <i class="fas fa-info-circle fa-2x mb-3"></i>
+    <h5>Seleccione un rango de fechas y haga clic en "Filtrar" para ver los reportes</h5>
+    <p class="mb-0">Los resultados se mostrarán aquí después de aplicar los filtros.</p>
+</div>
+{% endif %}
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Establecer fechas por defecto si están vacías
-    document.addEventListener('DOMContentLoaded', function() {
-        const fechaDesde = document.getElementById('fecha_desde');
-        const fechaHasta = document.getElementById('fecha_hasta');
-        
-        // Si las fechas están vacías, usar los últimos 30 días
-        if (!fechaDesde.value || !fechaHasta.value) {
-            const hoy = new Date();
-            const hace30Dias = new Date(hoy.getTime() - (30 * 24 * 60 * 60 * 1000));
-            
-            if (!fechaDesde.value) {
-                fechaDesde.value = hace30Dias.toISOString().split('T')[0];
-            }
-            if (!fechaHasta.value) {
-                fechaHasta.value = hoy.toISOString().split('T')[0];
-            }
-        }
-    });
+    // Las fechas se dejan vacías hasta que el usuario haga clic en Filtrar
 </script>
 {% endblock %}

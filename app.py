@@ -118,6 +118,41 @@ def cargar_modulos():
     
     return sorted(modulos)
 
+def cargar_maestro_productos():
+    """Cargar mapeo de variedades a productos maestros desde CSV"""
+    mapeo = {}
+    csv_path = 'MAESTRO_PROS.csv'
+    try:
+        if os.path.exists(csv_path):
+            with open(csv_path, 'r', encoding='utf-8-sig') as file:  # utf-8-sig para manejar BOM
+                content = file.read()
+                lines = content.strip().split('\n')
+                
+                # Primera línea son los headers
+                if len(lines) > 1:
+                    for line in lines[1:]:  # Saltar header
+                        if ';' in line:
+                            partes = line.strip().split(';')
+                            if len(partes) >= 2:
+                                variedad = partes[0].strip()
+                                prod_maestro = partes[1].strip()
+                                if variedad and prod_maestro:
+                                    mapeo[variedad] = prod_maestro
+                
+                print(f"Maestro productos cargados: {len(mapeo)} variedades")
+    except Exception as e:
+        print(f"Error cargando maestro productos: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return mapeo
+
+def formato_semana(fecha):
+    """Convertir fecha a formato AA-SS (año-semana ISO)"""
+    year = fecha.year % 100  # Últimos 2 dígitos del año
+    semana = fecha.isocalendar()[1]  # Semana ISO
+    return f"{year:02d}{semana:02d}"
+
 @app.route('/')
 def index():
     # Obtener todos los registros ordenados desde el más reciente hasta el más antiguo
@@ -233,55 +268,64 @@ def reportes():
     fecha_desde = request.args.get('fecha_desde')
     fecha_hasta = request.args.get('fecha_hasta')
     
-    # Si no se especifican fechas, usar los últimos 30 días
-    if not fecha_desde or not fecha_hasta:
-        fecha_hasta_dt = datetime.now().date()
-        fecha_desde_dt = fecha_hasta_dt - timedelta(days=30)
-        fecha_desde = fecha_desde_dt.strftime('%Y-%m-%d')
-        fecha_hasta = fecha_hasta_dt.strftime('%Y-%m-%d')
-    else:
+    # Verificar si se enviaron parámetros (se hizo clic en Filtrar)
+    mostrar_resultados = fecha_desde is not None and fecha_hasta is not None
+    
+    # Inicializar variables
+    resumen_variedad = []
+    total_registros = 0
+    total_tallos = 0
+    total_mallas = 0
+    variedades_unicas = 0
+    
+    # Solo calcular si hay filtros aplicados
+    if mostrar_resultados:
         fecha_desde_dt = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
         fecha_hasta_dt = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
-    
-    # Para incluir TODO el día final, agregar un día y usar < en lugar de <=
-    fecha_hasta_inclusiva = fecha_hasta_dt + timedelta(days=1)
-    
-    # Consulta base con filtro de fechas
-    query_base = RegistroCosecha.query.filter(
-        RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha < fecha_hasta_inclusiva
-    )
-    
-    # Resumen por variedad
-    resumen_variedad = db.session.query(
-        RegistroCosecha.variedad,
-        func.count(RegistroCosecha.id).label('total_registros'),
-        func.sum(RegistroCosecha.total_tallos).label('total_tallos'),
-        func.sum(RegistroCosecha.mallas).label('total_mallas'),
-        func.avg(RegistroCosecha.total_tallos).label('promedio_tallos')
-    ).filter(
-        RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha < fecha_hasta_inclusiva
-    ).group_by(RegistroCosecha.variedad).order_by(
-        func.sum(RegistroCosecha.total_tallos).desc()
-    ).all()
-    
-    # Estadísticas generales
-    total_registros = query_base.count()
-    total_tallos = db.session.query(func.sum(RegistroCosecha.total_tallos)).filter(
-        RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha < fecha_hasta_inclusiva
-    ).scalar() or 0
-    
-    total_mallas = db.session.query(func.sum(RegistroCosecha.mallas)).filter(
-        RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha < fecha_hasta_inclusiva
-    ).scalar() or 0
-    
-    variedades_unicas = db.session.query(func.count(func.distinct(RegistroCosecha.variedad))).filter(
-        RegistroCosecha.fecha >= fecha_desde_dt,
-        RegistroCosecha.fecha < fecha_hasta_inclusiva
-    ).scalar() or 0
+        
+        # Para incluir TODO el día final, agregar un día y usar < en lugar de <=
+        fecha_hasta_inclusiva = fecha_hasta_dt + timedelta(days=1)
+        
+        # Consulta base con filtro de fechas
+        query_base = RegistroCosecha.query.filter(
+            RegistroCosecha.fecha >= fecha_desde_dt,
+            RegistroCosecha.fecha < fecha_hasta_inclusiva
+        )
+        
+        # Resumen por variedad
+        resumen_variedad = db.session.query(
+            RegistroCosecha.variedad,
+            func.count(RegistroCosecha.id).label('total_registros'),
+            func.sum(RegistroCosecha.total_tallos).label('total_tallos'),
+            func.sum(RegistroCosecha.mallas).label('total_mallas'),
+            func.avg(RegistroCosecha.total_tallos).label('promedio_tallos')
+        ).filter(
+            RegistroCosecha.fecha >= fecha_desde_dt,
+            RegistroCosecha.fecha < fecha_hasta_inclusiva
+        ).group_by(RegistroCosecha.variedad).order_by(
+            func.sum(RegistroCosecha.total_tallos).desc()
+        ).all()
+        
+        # Estadísticas generales
+        total_registros = query_base.count()
+        total_tallos = db.session.query(func.sum(RegistroCosecha.total_tallos)).filter(
+            RegistroCosecha.fecha >= fecha_desde_dt,
+            RegistroCosecha.fecha < fecha_hasta_inclusiva
+        ).scalar() or 0
+        
+        total_mallas = db.session.query(func.sum(RegistroCosecha.mallas)).filter(
+            RegistroCosecha.fecha >= fecha_desde_dt,
+            RegistroCosecha.fecha < fecha_hasta_inclusiva
+        ).scalar() or 0
+        
+        variedades_unicas = db.session.query(func.count(func.distinct(RegistroCosecha.variedad))).filter(
+            RegistroCosecha.fecha >= fecha_desde_dt,
+            RegistroCosecha.fecha < fecha_hasta_inclusiva
+        ).scalar() or 0
+    else:
+        # Valores por defecto para mostrar en el formulario
+        fecha_desde = ''
+        fecha_hasta = ''
     
     return render_template('reportes.html',
                          resumen_variedad=resumen_variedad,
@@ -290,7 +334,83 @@ def reportes():
                          total_registros=total_registros,
                          total_tallos=total_tallos,
                          total_mallas=total_mallas,
-                         variedades_unicas=variedades_unicas)
+                         variedades_unicas=variedades_unicas,
+                         mostrar_resultados=mostrar_resultados)
+
+@app.route('/resumen')
+def resumen():
+    """Resumen por semana con tabla: producto maestro → variedades x días de la semana"""
+    from sqlalchemy import func
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+    
+    # Obtener semana seleccionada (formato AASS como 2546)
+    semana_filtro = request.args.get('semana', '')
+    
+    # Cargar mapeo de variedades a productos maestros
+    maestro_productos = cargar_maestro_productos()
+    
+    # Obtener todos los registros
+    if semana_filtro:
+        # Filtrar por semana específica
+        registros = RegistroCosecha.query.all()
+        registros_filtrados = []
+        for r in registros:
+            semana_registro = formato_semana(r.fecha)
+            if semana_registro == semana_filtro:
+                registros_filtrados.append(r)
+        registros = registros_filtrados
+    else:
+        # Mostrar semana actual por defecto
+        fecha_hoy = datetime.now().date()
+        # Obtener lunes de la semana actual
+        dias_desde_lunes = fecha_hoy.weekday()
+        fecha_lunes = fecha_hoy - timedelta(days=dias_desde_lunes)
+        
+        registros = RegistroCosecha.query.filter(
+            RegistroCosecha.fecha >= fecha_lunes
+        ).all()
+        semana_filtro = formato_semana(fecha_hoy)
+    
+    # Estructura: {semana: {prod_maestro: {variedad: {dia_semana: total_tallos}}}}
+    # dia_semana: 0=Lunes, 1=Martes, ..., 6=Domingo
+    datos_por_semana = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int))))
+    semanas_disponibles = set()
+    
+    # Obtener todas las semanas disponibles en la BD
+    todos_registros = RegistroCosecha.query.all()
+    for r in todos_registros:
+        semanas_disponibles.add(formato_semana(r.fecha))
+    
+    # Procesar registros filtrados
+    for registro in registros:
+        semana = formato_semana(registro.fecha)
+        prod_maestro = maestro_productos.get(registro.variedad, 'SIN CLASIFICAR')
+        variedad = registro.variedad
+        dia_semana = registro.fecha.weekday()  # 0=Lunes, 6=Domingo
+        
+        datos_por_semana[semana][prod_maestro][variedad][dia_semana] += registro.total_tallos
+    
+    # Ordenar semanas disponibles (más reciente primero)
+    semanas_ordenadas = sorted(list(semanas_disponibles), reverse=True)
+    
+    # Convertir defaultdict a dict normal y calcular totales
+    datos_finales = {}
+    for semana in datos_por_semana:
+        datos_finales[semana] = {}
+        for prod_maestro in datos_por_semana[semana]:
+            datos_finales[semana][prod_maestro] = {}
+            for variedad in datos_por_semana[semana][prod_maestro]:
+                datos_finales[semana][prod_maestro][variedad] = dict(datos_por_semana[semana][prod_maestro][variedad])
+    
+    # Días de la semana
+    dias_semana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    
+    return render_template('resumen.html',
+                         datos=datos_finales,
+                         semanas_disponibles=semanas_ordenadas,
+                         semana_seleccionada=semana_filtro,
+                         dias_semana=dias_semana)
 
 @app.route('/exportar_excel')
 def exportar_excel():
