@@ -201,8 +201,9 @@ def nuevo_registro():
             db.session.add(nuevo_registro)
             db.session.commit()
             
-            flash('Registro de cosecha creado exitosamente!', 'success')
-            return redirect(url_for('index'))
+            flash('¡Registro guardado exitosamente! Puedes ingresar un nuevo registro.', 'success')
+            # Redirigir a la misma página para seguir ingresando registros
+            return redirect(url_for('nuevo_registro'))
             
         except Exception as e:
             flash(f'Error al crear el registro: {str(e)}', 'error')
@@ -339,7 +340,7 @@ def reportes():
 
 @app.route('/resumen')
 def resumen():
-    """Resumen por semana con tabla: variedades x días de la semana, con desglose de módulos"""
+    """Resumen por semana con tabla: producto maestro → variedades → desglose de bloques"""
     from sqlalchemy import func
     from collections import defaultdict
     from datetime import datetime, timedelta
@@ -372,10 +373,10 @@ def resumen():
         ).all()
         semana_filtro = formato_semana(fecha_hoy)
     
-    # Estructura principal: {semana: {variedad: {dia_semana: total_tallos}}}
-    # Estructura de desglose: {semana: {variedad: {dia_semana: {modulo: total_tallos}}}}
-    datos_por_semana = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
-    desglose_modulos = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int))))
+    # Estructura: {semana: {prod_maestro: {variedad: {dia_semana: total_tallos}}}}
+    # Desglose: {semana: {prod_maestro: {variedad: {dia_semana: {modulo: total_tallos}}}}}
+    datos_por_semana = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int))))
+    desglose_modulos = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int)))))
     semanas_disponibles = set()
     
     # Obtener todas las semanas disponibles en la BD
@@ -386,15 +387,16 @@ def resumen():
     # Procesar registros filtrados
     for registro in registros:
         semana = formato_semana(registro.fecha)
+        prod_maestro = maestro_productos.get(registro.variedad, 'SIN CLASIFICAR')
         variedad = registro.variedad
         dia_semana = registro.fecha.weekday()  # 0=Lunes, 6=Domingo
         modulo = registro.modulo
         
-        # Acumular totales por variedad y día
-        datos_por_semana[semana][variedad][dia_semana] += registro.total_tallos
+        # Acumular totales por producto maestro, variedad y día
+        datos_por_semana[semana][prod_maestro][variedad][dia_semana] += registro.total_tallos
         
         # Guardar desglose por módulo
-        desglose_modulos[semana][variedad][dia_semana][modulo] += registro.total_tallos
+        desglose_modulos[semana][prod_maestro][variedad][dia_semana][modulo] += registro.total_tallos
     
     # Ordenar semanas disponibles (más reciente primero)
     semanas_ordenadas = sorted(list(semanas_disponibles), reverse=True)
@@ -403,16 +405,20 @@ def resumen():
     datos_finales = {}
     for semana in datos_por_semana:
         datos_finales[semana] = {}
-        for variedad in datos_por_semana[semana]:
-            datos_finales[semana][variedad] = dict(datos_por_semana[semana][variedad])
+        for prod_maestro in datos_por_semana[semana]:
+            datos_finales[semana][prod_maestro] = {}
+            for variedad in datos_por_semana[semana][prod_maestro]:
+                datos_finales[semana][prod_maestro][variedad] = dict(datos_por_semana[semana][prod_maestro][variedad])
     
     desglose_finales = {}
     for semana in desglose_modulos:
         desglose_finales[semana] = {}
-        for variedad in desglose_modulos[semana]:
-            desglose_finales[semana][variedad] = {}
-            for dia in desglose_modulos[semana][variedad]:
-                desglose_finales[semana][variedad][dia] = dict(desglose_modulos[semana][variedad][dia])
+        for prod_maestro in desglose_modulos[semana]:
+            desglose_finales[semana][prod_maestro] = {}
+            for variedad in desglose_modulos[semana][prod_maestro]:
+                desglose_finales[semana][prod_maestro][variedad] = {}
+                for dia in desglose_modulos[semana][prod_maestro][variedad]:
+                    desglose_finales[semana][prod_maestro][variedad][dia] = dict(desglose_modulos[semana][prod_maestro][variedad][dia])
     
     # Días de la semana
     dias_semana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
