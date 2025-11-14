@@ -8,6 +8,16 @@
         <i class="fas fa-calendar-week text-primary me-2"></i>
         Resumen por Semana
     </h1>
+    <div>
+        <button class="btn btn-sm btn-outline-success" onclick="expandirTodos()">
+            <i class="fas fa-plus-circle me-1"></i>
+            Expandir Todos
+        </button>
+        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="colapsarTodos()">
+            <i class="fas fa-minus-circle me-1"></i>
+            Colapsar Todos
+        </button>
+    </div>
 </div>
 
 <!-- Filtro de Semanas -->
@@ -42,8 +52,8 @@
     </div>
 </div>
 
-<!-- Resumen por Producto Maestro y Variedad -->
-{% for semana, productos in datos.items()|sort(reverse=True) %}
+<!-- Resumen por Variedad -->
+{% for semana, variedades in datos.items()|sort(reverse=True) %}
 <div class="card mb-4">
     <div class="card-header bg-success text-white">
         <h5 class="mb-0">
@@ -52,85 +62,147 @@
         </h5>
     </div>
     <div class="card-body p-0">
-        {% for producto_maestro, variedades in productos.items()|sort %}
-        <div class="border-bottom">
-            <!-- Encabezado del Producto Maestro -->
-            <div class="bg-light p-3">
-                <h6 class="mb-0 text-primary fw-bold">
-                    <i class="fas fa-box me-2"></i>
-                    {{ producto_maestro }}
-                </h6>
-            </div>
-            
-            <!-- Tabla de Variedades por Día -->
-            <div class="table-responsive">
-                <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="min-width: 180px;">
-                                <i class="fas fa-seedling me-1"></i>
-                                Variedad
-                            </th>
-                            {% for dia in dias_semana %}
-                            <th class="text-center" style="min-width: 80px;">
-                                {{ dia[:3] }}
-                            </th>
-                            {% endfor %}
-                            <th class="text-center bg-warning" style="min-width: 100px;">
-                                <i class="fas fa-calculator me-1"></i>
-                                Total
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for variedad, dias in variedades.items()|sort %}
-                        <tr>
-                            <td class="fw-bold">{{ variedad }}</td>
-                            {% for i in range(7) %}
-                                {% set valor = dias.get(i, 0) %}
-                                <td class="text-center">
-                                    {% if valor > 0 %}
-                                        <span class="badge bg-success">{{ "{:,}".format(valor) }}</span>
-                                    {% else %}
-                                        <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                            {% endfor %}
-                            <td class="text-center bg-warning fw-bold">
-                                {{ "{:,}".format(dias.values()|sum) }}
-                            </td>
-                        </tr>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="min-width: 200px;">
+                            <i class="fas fa-seedling me-1"></i>
+                            Variedad
+                        </th>
+                        {% for dia in dias_semana %}
+                        <th class="text-center" style="min-width: 90px;">
+                            {{ dia[:3] }}
+                        </th>
                         {% endfor %}
-                        <!-- Fila de Totales por Día -->
-                        <tr class="table-info fw-bold">
-                            <td>TOTAL {{ producto_maestro }}</td>
-                            {% for i in range(7) %}
-                                {% set total_dia = 0 %}
-                                {% for variedad, dias in variedades.items() %}
-                                    {% set total_dia = total_dia + dias.get(i, 0) %}
-                                {% endfor %}
-                                <td class="text-center">
-                                    {% if total_dia > 0 %}
-                                        {{ "{:,}".format(total_dia) }}
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </td>
-                            {% endfor %}
-                            <td class="text-center bg-warning">
-                                {# Calcular gran total sumando todos los días de todas las variedades #}
-                                {% set gran_total = namespace(value=0) %}
-                                {% for variedad, dias in variedades.items() %}
-                                    {% set gran_total.value = gran_total.value + dias.values()|sum %}
-                                {% endfor %}
-                                {{ "{:,}".format(gran_total.value) }}
+                        <th class="text-center bg-warning" style="min-width: 100px;">
+                            <i class="fas fa-calculator me-1"></i>
+                            Total
+                        </th>
+                        <th class="text-center" style="min-width: 100px;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for variedad, dias in variedades.items()|sort %}
+                    <tr>
+                        <td class="fw-bold">
+                            <i class="fas fa-leaf me-1 text-success"></i>
+                            {{ variedad }}
+                        </td>
+                        {% for i in range(7) %}
+                            {% set valor = dias.get(i, 0) %}
+                            <td class="text-center">
+                                {% if valor > 0 %}
+                                    <span class="badge bg-success">{{ "{:,}".format(valor) }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
                             </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                        {% endfor %}
+                        <td class="text-center bg-warning fw-bold">
+                            {{ "{:,}".format(dias.values()|sum) }}
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-info" type="button" 
+                                    onclick="toggleDetalle('{{ semana }}_{{ variedad|replace(' ', '_') }}')">
+                                <i class="fas fa-chevron-down me-1" id="icon_{{ semana }}_{{ variedad|replace(' ', '_') }}"></i>
+                                <span id="text_{{ semana }}_{{ variedad|replace(' ', '_') }}">Bloques</span>
+                            </button>
+                        </td>
+                    </tr>
+                    <!-- Desglose de Módulos (inicialmente oculto) -->
+                    <tr class="collapse" id="detalle_{{ semana }}_{{ variedad|replace(' ', '_') }}">
+                        <td colspan="10" class="p-0">
+                            <div class="bg-light p-3">
+                                <h6 class="text-info mb-3">
+                                    <i class="fas fa-building me-2"></i>
+                                    Desglose por Bloques - {{ variedad }}
+                                </h6>
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="table-info">
+                                        <tr>
+                                            <th style="min-width: 150px;">Bloque/Módulo</th>
+                                            {% for dia in dias_semana %}
+                                            <th class="text-center" style="min-width: 90px;">{{ dia[:3] }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if desglose.get(semana, {}).get(variedad) %}
+                                            {# Recopilar todos los módulos únicos de esta variedad #}
+                                            {% set modulos_set = [] %}
+                                            {% for dia_idx, modulos_dict in desglose[semana][variedad].items() %}
+                                                {% for modulo in modulos_dict.keys() %}
+                                                    {% if modulo not in modulos_set %}
+                                                        {% set _ = modulos_set.append(modulo) %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endfor %}
+                                            
+                                            {# Mostrar cada módulo con sus valores por día #}
+                                            {% for modulo in modulos_set|sort %}
+                                            <tr>
+                                                <td class="fw-bold">
+                                                    <i class="fas fa-warehouse me-1 text-secondary"></i>
+                                                    {{ modulo }}
+                                                </td>
+                                                {% for i in range(7) %}
+                                                    {% set valor_modulo = desglose[semana][variedad].get(i, {}).get(modulo, 0) %}
+                                                    <td class="text-center">
+                                                        {% if valor_modulo > 0 %}
+                                                            <span class="badge bg-info">{{ "{:,}".format(valor_modulo) }}</span>
+                                                        {% else %}
+                                                            <span class="text-muted">-</span>
+                                                        {% endif %}
+                                                    </td>
+                                                {% endfor %}
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="8" class="text-center text-muted">
+                                                    No hay información de bloques disponible
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-secondary">
+                    <tr class="fw-bold">
+                        <td>
+                            <i class="fas fa-chart-line me-1"></i>
+                            TOTAL SEMANA
+                        </td>
+                        {% for i in range(7) %}
+                            {% set total_dia = namespace(value=0) %}
+                            {% for variedad, dias in variedades.items() %}
+                                {% set total_dia.value = total_dia.value + dias.get(i, 0) %}
+                            {% endfor %}
+                            <td class="text-center">
+                                {% if total_dia.value > 0 %}
+                                    {{ "{:,}".format(total_dia.value) }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                        <td class="text-center bg-warning">
+                            {% set gran_total = namespace(value=0) %}
+                            {% for variedad, dias in variedades.items() %}
+                                {% set gran_total.value = gran_total.value + dias.values()|sum %}
+                            {% endfor %}
+                            {{ "{:,}".format(gran_total.value) }}
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
-        {% endfor %}
     </div>
 </div>
 {% endfor %}
@@ -141,5 +213,56 @@
     No hay registros para mostrar en la semana seleccionada.
 </div>
 {% endif %}
+
+<script>
+function toggleDetalle(id) {
+    const detalleDiv = document.getElementById('detalle_' + id);
+    const icon = document.getElementById('icon_' + id);
+    const text = document.getElementById('text_' + id);
+    
+    if (detalleDiv.classList.contains('show')) {
+        // Ocultar detalle
+        detalleDiv.classList.remove('show');
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+        text.textContent = 'Ver Detalle';
+    } else {
+        // Mostrar detalle
+        detalleDiv.classList.add('show');
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+        text.textContent = 'Ocultar Detalle';
+    }
+}
+
+// Botones para expandir/colapsar todos
+function expandirTodos() {
+    document.querySelectorAll('[id^="detalle_"]').forEach(function(element) {
+        if (!element.classList.contains('show')) {
+            element.classList.add('show');
+        }
+    });
+    document.querySelectorAll('[id^="icon_"]').forEach(function(icon) {
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-up');
+    });
+    document.querySelectorAll('[id^="text_"]').forEach(function(text) {
+        text.textContent = 'Ocultar Detalle';
+    });
+}
+
+function colapsarTodos() {
+    document.querySelectorAll('[id^="detalle_"]').forEach(function(element) {
+        element.classList.remove('show');
+    });
+    document.querySelectorAll('[id^="icon_"]').forEach(function(icon) {
+        icon.classList.remove('fa-chevron-up');
+        icon.classList.add('fa-chevron-down');
+    });
+    document.querySelectorAll('[id^="text_"]').forEach(function(text) {
+        text.textContent = 'Ver Detalle';
+    });
+}
+</script>
 
 {% endblock %}
