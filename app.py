@@ -178,8 +178,8 @@ def nuevo_registro():
             variedad = request.form['variedad']
             responsable = request.form['responsable']
             
-            # La hora se toma automáticamente al momento del registro
-            hora_actual = datetime.now().time()
+            # La hora y fecha se toman automáticamente según zona horaria de Ecuador
+            hora_actual = datetime.now(ZONA_HORARIA).time()
             
             # Calcular total de tallos
             total_tallos = tallos * mallas

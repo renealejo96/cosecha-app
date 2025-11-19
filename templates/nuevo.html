@@ -14,6 +14,7 @@
             </div>
             <div class="card-body">
                 <form method="POST" id="registroForm">
+                    <!-- Fecha y Semana -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="fecha" class="form-label">
@@ -21,6 +22,30 @@
                                 Fecha *
                             </label>
                             <input type="date" class="form-control" id="fecha" name="fecha" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="semana" class="form-label">
+                                <i class="fas fa-calendar-week me-1"></i>
+                                Semana (Automático)
+                            </label>
+                            <input type="number" class="form-control bg-light" id="semana" name="semana" 
+                                   min="1" max="53" readonly required>
+                        </div>
+                    </div>
+
+                    <!-- Responsable y Viaje -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="responsable" class="form-label">
+                                <i class="fas fa-user me-1"></i>
+                                Responsable *
+                            </label>
+                            <select class="form-select" id="responsable" name="responsable" required>
+                                <option value="">Seleccione un responsable</option>
+                                {% for resp in responsables %}
+                                <option value="{{ resp }}">{{ resp }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="viaje" class="form-label">
@@ -36,17 +61,43 @@
                         </div>
                     </div>
 
+                    <!-- Módulo y Variedad -->
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="semana" class="form-label">
-                                <i class="fas fa-calendar-week me-1"></i>
-                                Semana (Automático)
+                            <label for="modulo" class="form-label">
+                                <i class="fas fa-cube me-1"></i>
+                                Módulo *
                             </label>
-                            <input type="number" class="form-control bg-light" id="semana" name="semana" 
-                                   min="1" max="53" readonly required>
-                            <small class="form-text text-muted">
-                                Se calcula automáticamente desde la fecha
-                            </small>
+                            <select class="form-select" id="modulo" name="modulo" required>
+                                <option value="">Seleccione un módulo</option>
+                                {% for mod in modulos %}
+                                <option value="{{ mod }}">{{ mod }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="variedad" class="form-label">
+                                <i class="fas fa-seedling me-1"></i>
+                                Variedad *
+                            </label>
+                            <select class="form-select" id="variedad" name="variedad" required>
+                                <option value="">Seleccione una variedad</option>
+                                {% for var in variedades %}
+                                <option value="{{ var }}">{{ var }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Mallas y Tallos -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="mallas" class="form-label">
+                                <i class="fas fa-th me-1"></i>
+                                Mallas *
+                            </label>
+                            <input type="number" class="form-control" id="mallas" name="mallas" 
+                                   min="1" placeholder="Número de mallas" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="tallos" class="form-label">
@@ -63,86 +114,29 @@
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="mallas" class="form-label">
-                                <i class="fas fa-th me-1"></i>
-                                Mallas *
-                            </label>
-                            <input type="number" class="form-control" id="mallas" name="mallas" 
-                                   min="1" placeholder="Número de mallas" required>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="modulo" class="form-label">
-                                <i class="fas fa-cube me-1"></i>
-                                Módulo *
-                            </label>
-                            <select class="form-select" id="modulo" name="modulo" required>
-                                <option value="">Seleccione un módulo</option>
-                                {% for mod in modulos %}
-                                <option value="{{ mod }}">{{ mod }}</option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">
-                                Módulos cargados desde modulos.csv
-                            </small>
+                    <!-- Total de Tallos - DESTACADO -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card border-success shadow-sm">
+                                <div class="card-body text-center py-4" style="background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);">
+                                    <h5 class="card-title text-success mb-2">
+                                        <i class="fas fa-calculator me-2"></i>
+                                        TOTAL DE TALLOS
+                                    </h5>
+                                    <h1 class="display-2 fw-bold text-success mb-0" id="totalTallos" style="font-size: 4.5rem;">0</h1>
+                                    <small class="text-muted">Tallos × Mallas</small>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
+                    <!-- Hora de Registro -->
                     <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="variedad" class="form-label">
-                                <i class="fas fa-seedling me-1"></i>
-                                Variedad *
-                            </label>
-                            <select class="form-select" id="variedad" name="variedad" required>
-                                <option value="">Seleccione una variedad</option>
-                                {% for var in variedades %}
-                                <option value="{{ var }}">{{ var }}</option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">
-                                Variedades cargadas desde variedades.csv
-                            </small>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="responsable" class="form-label">
-                                <i class="fas fa-user me-1"></i>
-                                Responsable *
-                            </label>
-                            <select class="form-select" id="responsable" name="responsable" required>
-                                <option value="">Seleccione un responsable</option>
-                                {% for resp in responsables %}
-                                <option value="{{ resp }}">{{ resp }}</option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text text-muted">
-                                Responsables cargados desde responsables.csv
-                            </small>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">
-                                <i class="fas fa-calculator me-1"></i>
-                                Total de Tallos
-                            </label>
-                            <input type="text" class="form-control" id="totalTallos" readonly 
-                                   placeholder="Se calculará automáticamente">
-                            <small class="form-text text-muted">
-                                Se calcula automáticamente: Tallos × Mallas
-                            </small>
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">
-                                <i class="fas fa-clock me-1"></i>
-                                Hora de Registro
-                            </label>
-                            <input type="text" class="form-control" id="horaActual" readonly>
-                            <small class="form-text text-muted">
-                                Se registra automáticamente al momento de guardar
-                            </small>
+                        <div class="col-12 mb-3">
+                            <div class="alert alert-secondary">
+                                <i class="fas fa-clock me-2"></i>
+                                <strong>Hora de registro:</strong> <span id="horaActual"></span> (se guardará automáticamente)
+                            </div>
                         </div>
                     </div>
 
@@ -187,12 +181,13 @@
     // Función para actualizar la hora actual
     function actualizarHora() {
         const now = new Date();
-        const timeString = now.toLocaleTimeString('es-ES', { 
+        const timeString = now.toLocaleTimeString('es-EC', { 
             hour: '2-digit', 
             minute: '2-digit',
-            second: '2-digit'
+            second: '2-digit',
+            timeZone: 'America/Guayaquil'
         });
-        document.getElementById('horaActual').value = timeString;
+        document.getElementById('horaActual').textContent = timeString;
     }
 
     // Función para calcular el total de tallos
@@ -201,7 +196,7 @@
         const mallas = parseInt(document.getElementById('mallas').value) || 0;
         const total = tallos * mallas;
         
-        document.getElementById('totalTallos').value = total > 0 ? total : '';
+        document.getElementById('totalTallos').textContent = total > 0 ? total.toLocaleString() : '0';
     }
 
     // Establecer fecha actual por defecto
