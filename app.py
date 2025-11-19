@@ -44,14 +44,8 @@ class RegistroCosecha(db.Model):
     fecha_creacion = db.Column(db.DateTime, default=datetime.now)
 
     def get_hora_local(self):
-        """Convertir hora a zona horaria local"""
-        # Combinar fecha y hora
-        dt_utc = datetime.combine(self.fecha, self.hora)
-        # Asumir que está en UTC
-        dt_utc = pytz.utc.localize(dt_utc)
-        # Convertir a zona horaria local
-        dt_local = dt_utc.astimezone(ZONA_HORARIA)
-        return dt_local.time()
+        """Retornar la hora tal como está guardada (ya está en hora de Ecuador)"""
+        return self.hora
 
     def __repr__(self):
         return f'<RegistroCosecha {self.id}>'
@@ -178,8 +172,10 @@ def nuevo_registro():
             variedad = request.form['variedad']
             responsable = request.form['responsable']
             
-            # La hora y fecha se toman automáticamente según zona horaria de Ecuador
-            hora_actual = datetime.now(ZONA_HORARIA).time()
+            # La hora se toma en el timezone de Ecuador
+            hora_actual_ec = datetime.now(ZONA_HORARIA)
+            # Extraer solo la hora (sin timezone) para guardar en la BD
+            hora_actual = hora_actual_ec.time()
             
             # Calcular total de tallos
             total_tallos = tallos * mallas

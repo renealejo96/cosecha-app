@@ -178,15 +178,18 @@
         }
     }
 
-    // Función para actualizar la hora actual
+    // Función para actualizar la hora actual en Ecuador
     function actualizarHora() {
         const now = new Date();
-        const timeString = now.toLocaleTimeString('es-EC', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            second: '2-digit',
-            timeZone: 'America/Guayaquil'
-        });
+        const ecuadorOffset = -5 * 60; // Ecuador está en UTC-5
+        const localOffset = now.getTimezoneOffset();
+        const ecuadorTime = new Date(now.getTime() + (localOffset + ecuadorOffset) * 60000);
+        
+        const hours = String(ecuadorTime.getHours()).padStart(2, '0');
+        const minutes = String(ecuadorTime.getMinutes()).padStart(2, '0');
+        const seconds = String(ecuadorTime.getSeconds()).padStart(2, '0');
+        const timeString = `${hours}:${minutes}:${seconds}`;
+        
         document.getElementById('horaActual').textContent = timeString;
     }
 
@@ -199,8 +202,18 @@
         document.getElementById('totalTallos').textContent = total > 0 ? total.toLocaleString() : '0';
     }
 
-    // Establecer fecha actual por defecto
-    document.getElementById('fecha').valueAsDate = new Date();
+    // Establecer fecha actual por defecto usando hora de Ecuador (UTC-5)
+    const now = new Date();
+    const ecuadorOffset = -5 * 60; // Ecuador está en UTC-5
+    const localOffset = now.getTimezoneOffset();
+    const ecuadorTime = new Date(now.getTime() + (localOffset + ecuadorOffset) * 60000);
+    
+    const year = ecuadorTime.getFullYear();
+    const month = String(ecuadorTime.getMonth() + 1).padStart(2, '0');
+    const day = String(ecuadorTime.getDate()).padStart(2, '0');
+    const fechaEcuador = `${year}-${month}-${day}`;
+    
+    document.getElementById('fecha').value = fechaEcuador;
     
     // Calcular semana inicial
     actualizarSemana();
