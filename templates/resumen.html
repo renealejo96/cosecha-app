@@ -8,6 +8,10 @@
         <i class="fas fa-calendar-week text-primary me-2"></i>
         Resumen por Semana
     </h1>
+    <button class="btn btn-info" onclick="mostrarDetalleCompleto()">
+        <i class="fas fa-chart-bar me-2"></i>
+        Ver Detalle por Bloques
+    </button>
 </div>
 
 <!-- Filtro de Semanas -->
@@ -79,7 +83,6 @@
                             <i class="fas fa-calculator me-1"></i>
                             Total
                         </th>
-                        <th class="text-center" style="min-width: 100px;">Acción</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -101,13 +104,6 @@
                         {% endfor %}
                         <td class="text-center bg-warning fw-bold">
                             {{ "{:,}".format(dias.values()|sum) }}
-                        </td>
-                        <td class="text-center">
-                            <button class="btn btn-sm btn-outline-info" type="button" 
-                                    onclick="mostrarDetalleBloque('{{ semana }}', '{{ producto_maestro }}', '{{ variedad }}')">
-                                <i class="fas fa-chart-bar me-1"></i>
-                                Detalle por Bloque
-                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -138,7 +134,6 @@
                             {% endfor %}
                             {{ "{:,}".format(gran_total.value) }}
                         </td>
-                        <td></td>
                     </tr>
                 </tfoot>
             </table>
@@ -185,7 +180,166 @@
 <script>
 // Datos de desglose pasados desde el backend
 const desgloseData = {{ desglose|tojson|safe }};
+const datosData = {{ datos|tojson|safe }};
 const diasSemana = {{ dias_semana|tojson|safe }};
+
+function mostrarDetalleCompleto() {
+    const semana = '{{ semana_seleccionada }}';
+    const desglose = desgloseData[semana];
+    const datos = datosData[semana];
+    
+    if (!desglose || !datos) {
+        document.getElementById('contenidoDetalleBloque').innerHTML = `
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                No hay información de bloques disponible para esta semana.
+            </div>
+        `;
+        const modal = new bootstrap.Modal(document.getElementById('modalDetalleBloque'));
+        modal.show();
+        return;
+    }
+    
+    let html = `
+        <div class="mb-3">
+            <h5 class="text-primary">
+                <i class="fas fa-calendar-week me-2"></i>
+                Detalle por Bloques - Semana ${semana.substring(0,2)}-${semana.substring(2)}
+            </h5>
+        </div>
+    `;
+    
+    // Iterar por cada producto maestro
+    const productosMaestros = Object.keys(datos).sort();
+    
+    productosMaestros.forEach((productoMaestro, indexProd) => {
+        if (indexProd > 0) {
+            html += '<hr class="my-4">';
+        }
+        
+        html += `
+            <div class="mb-4">
+                <h6 class="bg-primary text-white p-2 rounded">
+                    <i class="fas fa-box me-2"></i>
+                    ${productoMaestro}
+                </h6>
+        `;
+        
+        const variedades = Object.keys(datos[productoMaestro]).sort();
+        
+        // Iterar por cada variedad del producto maestro
+        variedades.forEach((variedad, indexVar) => {
+            const desgloseVariedad = desglose[productoMaestro]?.[variedad];
+            
+            if (!desgloseVariedad) return;
+            
+            // Recopilar todos los módulos únicos de esta variedad
+            const modulosSet = new Set();
+            Object.values(desgloseVariedad).forEach(dia => {
+                Object.keys(dia).forEach(modulo => modulosSet.add(modulo));
+            });
+            const modulos = Array.from(modulosSet).sort();
+            
+            if (modulos.length === 0) return;
+            
+            html += `
+                <div class="mb-3">
+                    <h6 class="text-success fw-bold">
+                        <i class="fas fa-leaf me-1"></i>
+                        ${variedad}
+                    </h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="min-width: 150px;">
+                                        <i class="fas fa-warehouse me-1"></i>
+                                        Bloque/Módulo
+                                    </th>
+            `;
+            
+            // Agregar columnas de días
+            diasSemana.forEach(dia => {
+                html += `<th class="text-center" style="min-width: 80px;">${dia.substring(0,3)}</th>`;
+            });
+            html += `
+                                    <th class="text-center bg-warning" style="min-width: 90px;">
+                                        <i class="fas fa-calculator me-1"></i>
+                                        Total
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            // Agregar filas de módulos
+            modulos.forEach(modulo => {
+                html += `<tr>
+                    <td class="fw-bold">
+                        <i class="fas fa-warehouse me-1 text-secondary"></i>
+                        ${modulo}
+                    </td>
+                `;
+                
+                let totalModulo = 0;
+                for (let i = 0; i < 7; i++) {
+                    const valor = desgloseVariedad[i]?.[modulo] || 0;
+                    totalModulo += valor;
+                    
+                    if (valor > 0) {
+                        html += `<td class="text-center"><span class="badge bg-info">${valor.toLocaleString()}</span></td>`;
+                    } else {
+                        html += `<td class="text-center"><span class="text-muted">-</span></td>`;
+                    }
+                }
+                
+                html += `<td class="text-center bg-warning fw-bold">${totalModulo.toLocaleString()}</td>`;
+                html += `</tr>`;
+            });
+            
+            // Fila de totales por día para esta variedad
+            html += `
+                                <tr class="table-secondary fw-bold">
+                                    <td>
+                                        <i class="fas fa-chart-line me-1"></i>
+                                        TOTAL ${variedad}
+                                    </td>
+            `;
+            
+            let granTotal = 0;
+            for (let i = 0; i < 7; i++) {
+                let totalDia = 0;
+                modulos.forEach(modulo => {
+                    totalDia += desgloseVariedad[i]?.[modulo] || 0;
+                });
+                granTotal += totalDia;
+                
+                if (totalDia > 0) {
+                    html += `<td class="text-center">${totalDia.toLocaleString()}</td>`;
+                } else {
+                    html += `<td class="text-center">-</td>`;
+                }
+            }
+            
+            html += `
+                                    <td class="text-center bg-warning">${granTotal.toLocaleString()}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += `</div>`;
+    });
+    
+    document.getElementById('contenidoDetalleBloque').innerHTML = html;
+    
+    // Mostrar el modal
+    const modal = new bootstrap.Modal(document.getElementById('modalDetalleBloque'));
+    modal.show();
+}
 
 function mostrarDetalleBloque(semana, productoMaestro, variedad) {
     const desglose = desgloseData[semana]?.[productoMaestro]?.[variedad];
