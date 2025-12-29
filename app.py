@@ -143,7 +143,8 @@ def cargar_maestro_productos():
 
 def formato_semana(fecha):
     """Convertir fecha a formato AA-SS (año-semana ISO)"""
-    year = fecha.year % 100  # Últimos 2 dígitos del año
+    iso_year = fecha.isocalendar()[0]  # Año ISO (puede diferir del año calendario)
+    year = iso_year % 100  # Últimos 2 dígitos del año ISO
     semana = fecha.isocalendar()[1]  # Semana ISO
     return f"{year:02d}{semana:02d}"
 
