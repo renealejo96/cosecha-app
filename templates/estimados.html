@@ -1,0 +1,362 @@
+{% extends "base.html" %}
+
+{% block title %}Estimados Semanales - Registro de Cosecha{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-0">
+            <i class="fas fa-chart-line me-2"></i>
+            Estimados Semanales por Variedad
+        </h2>
+        <p class="text-muted">Gestiona tus estimados de producción por variedad y monitorea el cumplimiento</p>
+    </div>
+</div>
+
+<!-- Selector de Semana -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('estimados') }}" class="row g-3">
+            <div class="col-md-6">
+                <label for="semana" class="form-label">
+                    <i class="fas fa-calendar-week me-1"></i>
+                    Seleccionar Semana
+                </label>
+                <select class="form-select" id="semana" name="semana" onchange="this.form.submit()">
+                    {% for semana in semanas_disponibles %}
+                    <option value="{{ semana }}" {% if semana == semana_seleccionada %}selected{% endif %}>
+                        Semana {{ semana }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Formulario para Agregar/Editar Estimado -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-edit me-2"></i>
+            Ingresar Estimado por Variedad
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('guardar_estimado') }}" id="formEstimado">
+            <input type="hidden" name="semana" value="{{ semana_seleccionada }}">
+            <input type="hidden" name="producto_maestro" id="producto_maestro_hidden">
+            
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="producto_maestro_select" class="form-label">
+                        <i class="fas fa-box me-1"></i>
+                        Producto Maestro
+                    </label>
+                    <select class="form-select" id="producto_maestro_select" required onchange="cargarVariedades()">
+                        <option value="">Seleccionar producto...</option>
+                        {% for producto, variedades in productos_con_variedades.items()|sort %}
+                        <option value="{{ producto }}">{{ producto }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label for="variedad" class="form-label">
+                        <i class="fas fa-seedling me-1"></i>
+                        Variedad
+                    </label>
+                    <select class="form-select" id="variedad" name="variedad" required disabled>
+                        <option value="">Primero seleccione producto...</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-3">
+                    <label for="cantidad_estimada" class="form-label">
+                        <i class="fas fa-calculator me-1"></i>
+                        Cantidad Estimada (tallos)
+                    </label>
+                    <input type="number" class="form-control" id="cantidad_estimada" 
+                           name="cantidad_estimada" required min="0" step="1"
+                           placeholder="Ej: 12500">
+                </div>
+                
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-save me-2"></i>
+                        Guardar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tablas de Cumplimiento por Producto Maestro -->
+{% if datos_por_producto %}
+    {% for dato_producto in datos_por_producto %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-box me-2"></i>
+                    {{ dato_producto.producto }}
+                </h5>
+                <div>
+                    {% if dato_producto.total_estimado > 0 %}
+                        {% if dato_producto.porcentaje >= 100 %}
+                            <span class="badge bg-success fs-6">
+                                <i class="fas fa-check-circle me-1"></i>
+                                {{ dato_producto.porcentaje }}%
+                            </span>
+                        {% elif dato_producto.porcentaje >= 75 %}
+                            <span class="badge bg-info fs-6">
+                                {{ dato_producto.porcentaje }}%
+                            </span>
+                        {% elif dato_producto.porcentaje >= 50 %}
+                            <span class="badge bg-warning text-dark fs-6">
+                                {{ dato_producto.porcentaje }}%
+                            </span>
+                        {% else %}
+                            <span class="badge bg-danger fs-6">
+                                {{ dato_producto.porcentaje }}%
+                            </span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th><i class="fas fa-seedling me-1"></i> Variedad</th>
+                            <th class="text-end"><i class="fas fa-bullseye me-1"></i> Estimado</th>
+                            <th class="text-end"><i class="fas fa-check-circle me-1"></i> Real</th>
+                            <th class="text-end"><i class="fas fa-chart-pie me-1"></i> Cumplimiento</th>
+                            <th class="text-center"><i class="fas fa-cogs me-1"></i> Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for var_dato in dato_producto.variedades %}
+                        <tr>
+                            <td>
+                                <strong>{{ var_dato.variedad }}</strong>
+                            </td>
+                            <td class="text-end">
+                                {% if var_dato.estimado > 0 %}
+                                <span class="badge bg-primary">{{ "{:,}".format(var_dato.estimado) }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if var_dato.real > 0 %}
+                                <span class="badge bg-secondary">{{ "{:,}".format(var_dato.real) }}</span>
+                                {% else %}
+                                <span class="text-muted">0</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if var_dato.porcentaje is not none %}
+                                    {% if var_dato.porcentaje >= 100 %}
+                                        <span class="badge bg-success fs-6">
+                                            <i class="fas fa-check-circle me-1"></i>
+                                            {{ var_dato.porcentaje }}%
+                                        </span>
+                                    {% elif var_dato.porcentaje >= 75 %}
+                                        <span class="badge bg-info fs-6">
+                                            {{ var_dato.porcentaje }}%
+                                        </span>
+                                    {% elif var_dato.porcentaje >= 50 %}
+                                        <span class="badge bg-warning text-dark fs-6">
+                                            {{ var_dato.porcentaje }}%
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger fs-6">
+                                            {{ var_dato.porcentaje }}%
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    {% if var_dato.real > 0 %}
+                                        <span class="badge bg-dark">Sin estimado</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if var_dato.id %}
+                                <button type="button" class="btn btn-sm btn-warning" 
+                                        onclick="editarEstimado('{{ dato_producto.producto }}', '{{ var_dato.variedad }}', {{ var_dato.estimado }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <a href="{{ url_for('eliminar_estimado', id=var_dato.id) }}" 
+                                   class="btn btn-sm btn-danger"
+                                   onclick="return confirm('¿Estás seguro de eliminar este estimado?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                                {% else %}
+                                <button type="button" class="btn btn-sm btn-success" 
+                                        onclick="editarEstimado('{{ dato_producto.producto }}', '{{ var_dato.variedad }}', 0)">
+                                    <i class="fas fa-plus"></i> Agregar
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-info">
+                        <tr class="fw-bold">
+                            <td>
+                                <i class="fas fa-chart-line me-1"></i>
+                                TOTAL {{ dato_producto.producto }}
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-primary fs-6">{{ "{:,}".format(dato_producto.total_estimado) }}</span>
+                            </td>
+                            <td class="text-end">
+                                <span class="badge bg-secondary fs-6">{{ "{:,}".format(dato_producto.total_real) }}</span>
+                            </td>
+                            <td class="text-end">
+                                {% if dato_producto.total_estimado > 0 %}
+                                    {% if dato_producto.porcentaje >= 100 %}
+                                        <span class="badge bg-success fs-6">{{ dato_producto.porcentaje }}%</span>
+                                    {% elif dato_producto.porcentaje >= 75 %}
+                                        <span class="badge bg-info fs-6">{{ dato_producto.porcentaje }}%</span>
+                                    {% elif dato_producto.porcentaje >= 50 %}
+                                        <span class="badge bg-warning text-dark fs-6">{{ dato_producto.porcentaje }}%</span>
+                                    {% else %}
+                                        <span class="badge bg-danger fs-6">{{ dato_producto.porcentaje }}%</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Resumen General -->
+    <div class="card bg-light">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">
+                <i class="fas fa-chart-bar me-2"></i>
+                Resumen General - Semana {{ semana_seleccionada }}
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="text-muted">Total Estimado</h6>
+                            <h3 class="text-primary">
+                                {% set total_estimado_global = datos_por_producto|sum(attribute='total_estimado') %}
+                                {{ "{:,}".format(total_estimado_global) }}
+                            </h3>
+                            <small>tallos</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="text-muted">Total Real</h6>
+                            <h3 class="text-success">
+                                {% set total_real_global = datos_por_producto|sum(attribute='total_real') %}
+                                {{ "{:,}".format(total_real_global) }}
+                            </h3>
+                            <small>tallos</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h6 class="text-muted">Cumplimiento Global</h6>
+                            {% if total_estimado_global > 0 %}
+                                {% set cumplimiento_global = (total_real_global / total_estimado_global * 100)|round(2) %}
+                                <h3 class="{% if cumplimiento_global >= 100 %}text-success{% elif cumplimiento_global >= 75 %}text-info{% elif cumplimiento_global >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ cumplimiento_global }}%
+                                </h3>
+                            {% else %}
+                                <h3 class="text-muted">-</h3>
+                            {% endif %}
+                            <small>de lo estimado</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% else %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    No hay productos maestros configurados. Asegúrate de tener el archivo MAESTRO_PROS.csv correctamente configurado.
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Datos de variedades por producto
+const productosConVariedades = {{ productos_con_variedades|tojson|safe }};
+
+function cargarVariedades() {
+    const productoSelect = document.getElementById('producto_maestro_select');
+    const variedadSelect = document.getElementById('variedad');
+    const productoHidden = document.getElementById('producto_maestro_hidden');
+    
+    const producto = productoSelect.value;
+    productoHidden.value = producto;
+    
+    // Limpiar select de variedades
+    variedadSelect.innerHTML = '<option value="">Seleccionar variedad...</option>';
+    
+    if (producto && productosConVariedades[producto]) {
+        // Habilitar select y cargar variedades
+        variedadSelect.disabled = false;
+        
+        productosConVariedades[producto].forEach(variedad => {
+            const option = document.createElement('option');
+            option.value = variedad;
+            option.textContent = variedad;
+            variedadSelect.appendChild(option);
+        });
+    } else {
+        variedadSelect.disabled = true;
+    }
+    
+    // Limpiar cantidad
+    document.getElementById('cantidad_estimada').value = '';
+}
+
+function editarEstimado(producto, variedad, cantidad) {
+    // Seleccionar producto
+    document.getElementById('producto_maestro_select').value = producto;
+    cargarVariedades();
+    
+    // Esperar un momento para que se carguen las variedades
+    setTimeout(() => {
+        document.getElementById('variedad').value = variedad;
+        document.getElementById('cantidad_estimada').value = cantidad;
+        document.getElementById('cantidad_estimada').focus();
+        
+        // Scroll al formulario
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }, 100);
+}
+</script>
+{% endblock %}

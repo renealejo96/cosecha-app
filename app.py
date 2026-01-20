@@ -50,9 +50,41 @@ class RegistroCosecha(db.Model):
     def __repr__(self):
         return f'<RegistroCosecha {self.id}>'
 
-# Crear las tablas
+class Estimado(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    semana = db.Column(db.String(10), nullable=False)  # Formato: AASS (ej: 2526)
+    producto_maestro = db.Column(db.String(100), nullable=False)
+    variedad = db.Column(db.String(100), nullable=False)  # Nueva columna
+    cantidad_estimada = db.Column(db.Integer, nullable=False)
+    fecha_creacion = db.Column(db.DateTime, default=datetime.now)
+    fecha_modificacion = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f'<Estimado {self.semana} - {self.producto_maestro} - {self.variedad}>'
+
+# Crear las tablas y migrar si es necesario
 with app.app_context():
     db.create_all()
+    
+    # Migración: Agregar columna variedad a la tabla estimado si no existe
+    try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        columns = [col['name'] for col in inspector.get_columns('estimado')]
+        
+        if 'variedad' not in columns:
+            print("Migrando base de datos: Agregando columna 'variedad' a tabla 'estimado'...")
+            with db.engine.connect() as conn:
+                # Agregar columna variedad con valor por defecto temporal
+                conn.execute(text("ALTER TABLE estimado ADD COLUMN variedad VARCHAR(100)"))
+                # Actualizar registros existentes con un valor por defecto
+                conn.execute(text("UPDATE estimado SET variedad = 'SIN ESPECIFICAR' WHERE variedad IS NULL"))
+                # Hacer la columna NOT NULL
+                conn.execute(text("ALTER TABLE estimado ALTER COLUMN variedad SET NOT NULL"))
+                conn.commit()
+            print("Migración completada exitosamente.")
+    except Exception as e:
+        print(f"Error en migración (puede ser normal si ya está migrado): {e}")
 
 # Funciones para cargar datos desde CSV
 def cargar_variedades():
@@ -376,6 +408,9 @@ def resumen():
     desglose_modulos = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int)))))
     semanas_disponibles = set()
     
+    # Totales diarios entre todas las variedades
+    totales_diarios = defaultdict(lambda: defaultdict(int))  # {semana: {dia_semana: total_tallos}}
+    
     # Obtener todas las semanas disponibles en la BD
     todos_registros = RegistroCosecha.query.all()
     for r in todos_registros:
@@ -394,6 +429,9 @@ def resumen():
         
         # Guardar desglose por módulo
         desglose_modulos[semana][prod_maestro][variedad][dia_semana][modulo] += registro.total_tallos
+        
+        # Acumular totales diarios
+        totales_diarios[semana][dia_semana] += registro.total_tallos
     
     # Ordenar semanas disponibles (más reciente primero)
     semanas_ordenadas = sorted(list(semanas_disponibles), reverse=True)
@@ -417,15 +455,179 @@ def resumen():
                 for dia in desglose_modulos[semana][prod_maestro][variedad]:
                     desglose_finales[semana][prod_maestro][variedad][dia] = dict(desglose_modulos[semana][prod_maestro][variedad][dia])
     
+    # Convertir totales_diarios a dict normal
+    totales_diarios_finales = {}
+    for semana in totales_diarios:
+        totales_diarios_finales[semana] = dict(totales_diarios[semana])
+    
     # Días de la semana
     dias_semana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
     
     return render_template('resumen.html',
                          datos=datos_finales,
                          desglose=desglose_finales,
+                         totales_diarios=totales_diarios_finales,
                          semanas_disponibles=semanas_ordenadas,
                          semana_seleccionada=semana_filtro,
                          dias_semana=dias_semana)
+
+@app.route('/estimados')
+def estimados():
+    """Página de estimados con formulario y tabla de cumplimiento por variedad"""
+    from sqlalchemy import func
+    from collections import defaultdict
+    
+    # Obtener semana actual por defecto
+    fecha_hoy = datetime.now().date()
+    semana_actual = formato_semana(fecha_hoy)
+    
+    # Obtener semana seleccionada del formulario
+    semana_filtro = request.args.get('semana', semana_actual)
+    
+    # Cargar mapeo de variedades a productos maestros
+    maestro_productos = cargar_maestro_productos()
+    
+    # Crear estructura inversa: {producto_maestro: [variedades]}
+    productos_con_variedades = defaultdict(list)
+    for variedad, producto in maestro_productos.items():
+        if variedad not in productos_con_variedades[producto]:
+            productos_con_variedades[producto].append(variedad)
+    
+    # Ordenar variedades dentro de cada producto
+    for producto in productos_con_variedades:
+        productos_con_variedades[producto].sort()
+    
+    # Obtener todos los productos maestros únicos ordenados
+    productos_maestros = sorted(productos_con_variedades.keys())
+    
+    # Obtener estimados para la semana seleccionada
+    estimados = Estimado.query.filter_by(semana=semana_filtro).all()
+    estimados_dict = {(e.producto_maestro, e.variedad): e for e in estimados}
+    
+    # Calcular totales reales de la semana para cada variedad
+    todos_registros = RegistroCosecha.query.all()
+    registros_semana = [r for r in todos_registros if formato_semana(r.fecha) == semana_filtro]
+    
+    # Acumular por variedad
+    totales_reales_variedad = defaultdict(int)
+    for registro in registros_semana:
+        totales_reales_variedad[registro.variedad] += registro.total_tallos
+    
+    # Preparar datos agrupados por producto maestro
+    datos_por_producto = []
+    for producto in productos_maestros:
+        variedades_data = []
+        total_estimado_producto = 0
+        total_real_producto = 0
+        
+        for variedad in productos_con_variedades[producto]:
+            estimado_obj = estimados_dict.get((producto, variedad))
+            
+            # Solo incluir variedades que tienen estimado
+            if estimado_obj:
+                cantidad_estimada = estimado_obj.cantidad_estimada
+                cantidad_real = totales_reales_variedad.get(variedad, 0)
+                
+                if cantidad_estimada > 0:
+                    porcentaje = round((cantidad_real / cantidad_estimada) * 100, 2)
+                else:
+                    porcentaje = 0
+                
+                variedades_data.append({
+                    'variedad': variedad,
+                    'estimado': cantidad_estimada,
+                    'real': cantidad_real,
+                    'porcentaje': porcentaje,
+                    'id': estimado_obj.id
+                })
+                
+                total_estimado_producto += cantidad_estimada
+                total_real_producto += cantidad_real
+        
+        # Solo agregar el producto si tiene al menos una variedad con estimado
+        if variedades_data:
+            # Calcular porcentaje del producto
+            if total_estimado_producto > 0:
+                porcentaje_producto = round((total_real_producto / total_estimado_producto) * 100, 2)
+            else:
+                porcentaje_producto = 0
+            
+            datos_por_producto.append({
+                'producto': producto,
+                'variedades': variedades_data,
+                'total_estimado': total_estimado_producto,
+                'total_real': total_real_producto,
+                'porcentaje': porcentaje_producto
+            })
+    
+    # Obtener todas las semanas con estimados
+    semanas_con_estimados = db.session.query(Estimado.semana).distinct().all()
+    semanas_disponibles = sorted([s[0] for s in semanas_con_estimados], reverse=True)
+    
+    # Agregar semana actual si no está
+    if semana_actual not in semanas_disponibles:
+        semanas_disponibles.insert(0, semana_actual)
+    
+    return render_template('estimados.html',
+                         datos_por_producto=datos_por_producto,
+                         productos_con_variedades=dict(productos_con_variedades),
+                         semana_seleccionada=semana_filtro,
+                         semanas_disponibles=semanas_disponibles)
+
+@app.route('/estimados/guardar', methods=['POST'])
+def guardar_estimado():
+    """Guardar o actualizar un estimado"""
+    try:
+        semana = request.form['semana']
+        producto_maestro = request.form['producto_maestro']
+        variedad = request.form['variedad']
+        cantidad_estimada = int(request.form['cantidad_estimada'])
+        
+        # Buscar si ya existe un estimado para esta semana, producto y variedad
+        estimado = Estimado.query.filter_by(
+            semana=semana,
+            producto_maestro=producto_maestro,
+            variedad=variedad
+        ).first()
+        
+        if estimado:
+            # Actualizar existente
+            estimado.cantidad_estimada = cantidad_estimada
+            estimado.fecha_modificacion = datetime.now()
+            mensaje = f'Estimado actualizado: {variedad} - {cantidad_estimada:,} tallos'
+        else:
+            # Crear nuevo
+            estimado = Estimado(
+                semana=semana,
+                producto_maestro=producto_maestro,
+                variedad=variedad,
+                cantidad_estimada=cantidad_estimada
+            )
+            db.session.add(estimado)
+            mensaje = f'Estimado guardado: {variedad} - {cantidad_estimada:,} tallos'
+        
+        db.session.commit()
+        flash(mensaje, 'success')
+        
+    except Exception as e:
+        flash(f'Error al guardar estimado: {str(e)}', 'error')
+    
+    return redirect(url_for('estimados', semana=request.form.get('semana')))
+
+@app.route('/estimados/eliminar/<int:id>')
+def eliminar_estimado(id):
+    """Eliminar un estimado"""
+    estimado = Estimado.query.get_or_404(id)
+    semana = estimado.semana
+    
+    try:
+        db.session.delete(estimado)
+        db.session.commit()
+        flash('Estimado eliminado exitosamente!', 'success')
+    except Exception as e:
+        flash(f'Error al eliminar estimado: {str(e)}', 'error')
+    
+    return redirect(url_for('estimados', semana=semana))
 
 @app.route('/exportar_excel')
 def exportar_excel():
@@ -495,9 +697,29 @@ def exportar_excel():
         return redirect(url_for('reportes'))
 
 if __name__ == '__main__':
-    # Crear las tablas si no existen
+    # Crear las tablas y migrar si es necesario
     with app.app_context():
         db.create_all()
+        
+        # Migración: Agregar columna variedad a la tabla estimado si no existe
+        try:
+            from sqlalchemy import inspect, text
+            inspector = inspect(db.engine)
+            columns = [col['name'] for col in inspector.get_columns('estimado')]
+            
+            if 'variedad' not in columns:
+                print("Migrando base de datos: Agregando columna 'variedad' a tabla 'estimado'...")
+                with db.engine.connect() as conn:
+                    # Agregar columna variedad con valor por defecto temporal
+                    conn.execute(text("ALTER TABLE estimado ADD COLUMN variedad VARCHAR(100)"))
+                    # Actualizar registros existentes con un valor por defecto
+                    conn.execute(text("UPDATE estimado SET variedad = 'SIN ESPECIFICAR' WHERE variedad IS NULL"))
+                    # Hacer la columna NOT NULL
+                    conn.execute(text("ALTER TABLE estimado ALTER COLUMN variedad SET NOT NULL"))
+                    conn.commit()
+                print("Migración completada exitosamente.")
+        except Exception as e:
+            print(f"Error en migración (puede ser normal si ya está migrado): {e}")
     
     # Configuración para producción/desarrollo
     port = int(os.environ.get('PORT', 5000))

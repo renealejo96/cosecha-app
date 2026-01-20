@@ -140,6 +140,61 @@
         </div>
         </div>
         {% endfor %}
+        
+        <!-- Fila de TOTAL GENERAL POR DÍA (todas las variedades) -->
+        {% if totales_diarios.get(semana) %}
+        <div class="border-top mt-3">
+            <div class="bg-dark text-white p-3">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    TOTAL GENERAL DE TALLOS POR DÍA
+                </h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="min-width: 200px; position: sticky; left: 0; background-color: #212529; z-index: 10;">
+                                <i class="fas fa-calendar-day me-1"></i>
+                                Día
+                            </th>
+                            {% for dia in dias_semana %}
+                            <th class="text-center" style="min-width: 90px;">
+                                {{ dia[:3] }}
+                            </th>
+                            {% endfor %}
+                            <th class="text-center bg-warning text-dark" style="min-width: 100px;">
+                                <i class="fas fa-calculator me-1"></i>
+                                Total Semanal
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="table-success fw-bold">
+                            <td style="position: sticky; left: 0; background-color: #d1e7dd; z-index: 9;">
+                                <i class="fas fa-globe me-1"></i>
+                                TOTAL TALLOS
+                            </td>
+                            {% for i in range(7) %}
+                            <td class="text-center">
+                                {% set total = totales_diarios.get(semana, {}).get(i, 0) %}
+                                {% if total > 0 %}
+                                    <span class="badge bg-dark fs-6">{{ "{:,}".format(total) }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                            <td class="text-center bg-warning fw-bold">
+                                {% set total_semanal = totales_diarios.get(semana, {}).values()|sum %}
+                                <span class="fs-5">{{ "{:,}".format(total_semanal) }}</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endfor %}
