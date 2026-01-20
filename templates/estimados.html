@@ -287,6 +287,7 @@
                                     {{ cumplimiento_global }}%
                                 </h3>
                             {% else %}
+                                {% set cumplimiento_global = 0 %}
                                 <h3 class="text-muted">-</h3>
                             {% endif %}
                             <small>de lo estimado</small>
@@ -294,6 +295,31 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Velocímetro de Cumplimiento -->
+            {% if total_estimado_global > 0 %}
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <h5 class="mb-3">
+                                <i class="fas fa-tachometer-alt me-2"></i>
+                                Velocímetro de Cumplimiento
+                            </h5>
+                            <div style="max-width: 400px; margin: 0 auto;">
+                                <canvas id="gaugeChart"></canvas>
+                            </div>
+                            <div class="mt-3">
+                                <h2 class="mb-0 {% if cumplimiento_global >= 100 %}text-success{% elif cumplimiento_global >= 75 %}text-info{% elif cumplimiento_global >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ cumplimiento_global }}%
+                                </h2>
+                                <p class="text-muted mb-0">de cumplimiento</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -307,9 +333,51 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // Datos de variedades por producto
 const productosConVariedades = {{ productos_con_variedades|tojson|safe }};
+
+{% if datos_por_producto and (datos_por_producto|sum(attribute='total_estimado')) > 0 %}
+// Crear velocímetro de cumplimiento
+const cumplimientoGlobal = {{ cumplimiento_global|default(0) }};
+
+const gaugeData = {
+    datasets: [{
+        data: [cumplimientoGlobal, 100 - cumplimientoGlobal],
+        backgroundColor: [
+            cumplimientoGlobal >= 100 ? '#28a745' :
+            cumplimientoGlobal >= 75 ? '#17a2b8' :
+            cumplimientoGlobal >= 50 ? '#ffc107' : '#dc3545',
+            '#e9ecef'
+        ],
+        borderWidth: 0,
+        circumference: 180,
+        rotation: 270
+    }]
+};
+
+const gaugeOptions = {
+    responsive: true,
+    maintainAspectRatio: true,
+    aspectRatio: 2,
+    plugins: {
+        legend: {
+            display: false
+        },
+        tooltip: {
+            enabled: false
+        }
+    }
+};
+
+const ctx = document.getElementById('gaugeChart').getContext('2d');
+new Chart(ctx, {
+    type: 'doughnut',
+    data: gaugeData,
+    options: gaugeOptions
+});
+{% endif %}
 
 function cargarVariedades() {
     const productoSelect = document.getElementById('producto_maestro_select');
