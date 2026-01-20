@@ -252,13 +252,20 @@
             </h5>
         </div>
         <div class="card-body">
+            {% set total_estimado_global = datos_por_producto|sum(attribute='total_estimado') %}
+            {% set total_real_global = datos_por_producto|sum(attribute='total_real') %}
+            {% if total_estimado_global > 0 %}
+                {% set cumplimiento_global = (total_real_global / total_estimado_global * 100)|round(2) %}
+            {% else %}
+                {% set cumplimiento_global = 0 %}
+            {% endif %}
+            
             <div class="row">
                 <div class="col-md-4">
                     <div class="card text-center">
                         <div class="card-body">
                             <h6 class="text-muted">Total Estimado</h6>
                             <h3 class="text-primary">
-                                {% set total_estimado_global = datos_por_producto|sum(attribute='total_estimado') %}
                                 {{ "{:,}".format(total_estimado_global) }}
                             </h3>
                             <small>tallos</small>
@@ -270,7 +277,6 @@
                         <div class="card-body">
                             <h6 class="text-muted">Total Real</h6>
                             <h3 class="text-success">
-                                {% set total_real_global = datos_por_producto|sum(attribute='total_real') %}
                                 {{ "{:,}".format(total_real_global) }}
                             </h3>
                             <small>tallos</small>
@@ -282,12 +288,10 @@
                         <div class="card-body">
                             <h6 class="text-muted">Cumplimiento Global</h6>
                             {% if total_estimado_global > 0 %}
-                                {% set cumplimiento_global = (total_real_global / total_estimado_global * 100)|round(2) %}
                                 <h3 class="{% if cumplimiento_global >= 100 %}text-success{% elif cumplimiento_global >= 75 %}text-info{% elif cumplimiento_global >= 50 %}text-warning{% else %}text-danger{% endif %}">
                                     {{ cumplimiento_global }}%
                                 </h3>
                             {% else %}
-                                {% set cumplimiento_global = 0 %}
                                 <h3 class="text-muted">-</h3>
                             {% endif %}
                             <small>de lo estimado</small>
@@ -338,45 +342,52 @@
 // Datos de variedades por producto
 const productosConVariedades = {{ productos_con_variedades|tojson|safe }};
 
-{% if datos_por_producto and (datos_por_producto|sum(attribute='total_estimado')) > 0 %}
-// Crear velocímetro de cumplimiento
-const cumplimientoGlobal = {{ cumplimiento_global|default(0) }};
+{% if datos_por_producto %}
+// Calcular cumplimiento global
+const totalEstimado = {{ datos_por_producto|sum(attribute='total_estimado') }};
+const totalReal = {{ datos_por_producto|sum(attribute='total_real') }};
+const cumplimientoGlobal = totalEstimado > 0 ? Math.round((totalReal / totalEstimado * 100) * 100) / 100 : 0;
 
-const gaugeData = {
-    datasets: [{
-        data: [cumplimientoGlobal, 100 - cumplimientoGlobal],
-        backgroundColor: [
-            cumplimientoGlobal >= 100 ? '#28a745' :
-            cumplimientoGlobal >= 75 ? '#17a2b8' :
-            cumplimientoGlobal >= 50 ? '#ffc107' : '#dc3545',
-            '#e9ecef'
-        ],
-        borderWidth: 0,
-        circumference: 180,
-        rotation: 270
-    }]
-};
+if (totalEstimado > 0) {
+    // Crear velocímetro de cumplimiento
+    const gaugeData = {
+        datasets: [{
+            data: [cumplimientoGlobal, Math.max(0, 100 - cumplimientoGlobal)],
+            backgroundColor: [
+                cumplimientoGlobal >= 100 ? '#28a745' :
+                cumplimientoGlobal >= 75 ? '#17a2b8' :
+                cumplimientoGlobal >= 50 ? '#ffc107' : '#dc3545',
+                '#e9ecef'
+            ],
+            borderWidth: 0,
+            circumference: 180,
+            rotation: 270
+        }]
+    };
 
-const gaugeOptions = {
-    responsive: true,
-    maintainAspectRatio: true,
-    aspectRatio: 2,
-    plugins: {
-        legend: {
-            display: false
-        },
-        tooltip: {
-            enabled: false
+    const gaugeOptions = {
+        responsive: true,
+        maintainAspectRatio: true,
+        aspectRatio: 2,
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                enabled: false
+            }
         }
-    }
-};
+    };
 
-const ctx = document.getElementById('gaugeChart').getContext('2d');
-new Chart(ctx, {
-    type: 'doughnut',
-    data: gaugeData,
-    options: gaugeOptions
-});
+    const ctx = document.getElementById('gaugeChart');
+    if (ctx) {
+        new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: gaugeData,
+            options: gaugeOptions
+        });
+    }
+}
 {% endif %}
 
 function cargarVariedades() {
