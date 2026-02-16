@@ -14,6 +14,9 @@ Una aplicación web profesional desarrollada en Flask para el registro y gestió
 - **🌐 Interfaz moderna** con Bootstrap 5 y Font Awesome
 - **📱 Diseño responsivo** para escritorio y móvil
 - **⚡ Operaciones CRUD** completas con validación
+- **🔌 API REST** para consumir datos en Excel, Power BI y otras aplicaciones
+- **📥 Exportación a Excel** directa desde la API
+- **📈 Integración con Power Query** para dashboards automáticos
 
 ## 📋 Campos del Registro
 
@@ -179,6 +182,42 @@ Para personalizar la aplicación, puedes modificar:
 - Para producción, se recomienda cambiar la clave secreta en `app.py`
 - La hora se registra en el timezone local del servidor
 
+## 🔌 API REST para Excel y otras aplicaciones
+
+La aplicación incluye endpoints de API para consumir los datos del resumen:
+
+### Endpoints disponibles:
+
+- **GET `/api/resumen`** - Datos en formato JSON
+- **GET `/api/resumen/excel`** - Descarga archivo Excel directamente
+- **GET `/api/semanas`** - Lista de semanas disponibles
+
+### Ejemplos de uso:
+
+```
+http://localhost:5000/api/resumen?semana=2546
+http://localhost:5000/api/resumen/excel?semana=2546
+http://localhost:5000/api/semanas
+```
+
+### 📚 Documentación completa:
+
+- **RESUMEN_API.md** - Resumen completo de la API
+- **GUIA_RAPIDA_EXCEL.md** - 3 formas rápidas de usar en Excel
+- **API_DOCUMENTATION.md** - Documentación técnica detallada
+- **EXCEL_POWER_QUERY_GUIDE.md** - Guía paso a paso de Power Query
+- **TESTING_API.md** - Ejemplos y pruebas
+
+### Importar en Excel con Power Query:
+
+1. Excel → Datos → Obtener datos → Desde web
+2. URL: `http://localhost:5000/api/resumen`
+3. Expandir columna "datos"
+4. Cerrar y cargar
+5. ¡Actualizar con un click!
+
+Consulta **GUIA_RAPIDA_EXCEL.md** para más detalles.
+
 ## Solución de Problemas
 
 **Error al instalar dependencias**:
@@ -188,6 +227,12 @@ Para personalizar la aplicación, puedes modificar:
 **La aplicación no inicia**:
 - Verifica que todas las dependencias estén instaladas
 - Revisa que no haya otro proceso usando el puerto 5000
+
+**No puedo conectar desde Excel**:
+- Verifica que el servidor Flask esté corriendo
+- Usa `http://localhost:5000` o `http://127.0.0.1:5000`
+- Para producción, usa tu URL de Render.com
+
 
 **No se crean registros**:
 - Verifica que todos los campos obligatorios estén llenos

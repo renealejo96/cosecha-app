@@ -696,6 +696,238 @@ def exportar_excel():
         flash(f'Error al exportar: {str(e)}', 'error')
         return redirect(url_for('reportes'))
 
+# ============================================
+# API ENDPOINTS PARA CONSUMO EXTERNO (EXCEL)
+# ============================================
+
+@app.route('/api/resumen', methods=['GET'])
+def api_resumen():
+    """
+    API endpoint que devuelve los datos del resumen en formato JSON.
+    Parámetros opcionales:
+    - semana: Formato AASS (ej: 2546). Si no se especifica, devuelve la semana actual.
+    - formato: 'plano' o 'jerarquico' (por defecto: 'plano')
+    
+    Ejemplo de uso:
+    - /api/resumen?semana=2546
+    - /api/resumen?formato=jerarquico
+    """
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+    from flask import jsonify
+    
+    # Obtener parámetros
+    semana_filtro = request.args.get('semana', '')
+    formato = request.args.get('formato', 'plano')
+    
+    # Cargar mapeo de variedades a productos maestros
+    maestro_productos = cargar_maestro_productos()
+    
+    # Obtener registros
+    if semana_filtro:
+        registros = RegistroCosecha.query.all()
+        registros_filtrados = []
+        for r in registros:
+            semana_registro = formato_semana(r.fecha)
+            if semana_registro == semana_filtro:
+                registros_filtrados.append(r)
+        registros = registros_filtrados
+    else:
+        # Semana actual por defecto
+        fecha_hoy = datetime.now().date()
+        dias_desde_lunes = fecha_hoy.weekday()
+        fecha_lunes = fecha_hoy - timedelta(days=dias_desde_lunes)
+        registros = RegistroCosecha.query.filter(
+            RegistroCosecha.fecha >= fecha_lunes
+        ).all()
+        semana_filtro = formato_semana(fecha_hoy)
+    
+    # Días de la semana
+    dias_semana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    
+    if formato == 'plano':
+        # Formato plano: ideal para importar en Excel como tabla
+        datos_planos = []
+        
+        for registro in registros:
+            prod_maestro = maestro_productos.get(registro.variedad, 'SIN CLASIFICAR')
+            dia_semana_nombre = dias_semana[registro.fecha.weekday()]
+            
+            datos_planos.append({
+                'semana': semana_filtro,
+                'producto_maestro': prod_maestro,
+                'variedad': registro.variedad,
+                'fecha': registro.fecha.strftime('%Y-%m-%d'),
+                'dia_semana': dia_semana_nombre,
+                'modulo': registro.modulo,
+                'hora_cosecha': registro.hora.strftime('%H:%M:%S'),
+                'tallos_por_malla': registro.tallos,
+                'mallas': registro.mallas,
+                'total_tallos': registro.total_tallos,
+                'responsable': registro.responsable,
+                'viaje': registro.viaje
+            })
+        
+        return jsonify({
+            'semana': semana_filtro,
+            'total_registros': len(datos_planos),
+            'datos': datos_planos
+        })
+    
+    else:  # formato jerarquico
+        # Estructura jerárquica agrupada
+        datos_agrupados = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))
+        totales_por_variedad = defaultdict(lambda: defaultdict(int))
+        
+        for registro in registros:
+            prod_maestro = maestro_productos.get(registro.variedad, 'SIN CLASIFICAR')
+            dia_semana_nombre = dias_semana[registro.fecha.weekday()]
+            
+            # Guardar detalles del bloque
+            datos_agrupados[prod_maestro][registro.variedad][dia_semana_nombre][registro.modulo].append({
+                'hora_cosecha': registro.hora.strftime('%H:%M:%S'),
+                'tallos_por_malla': registro.tallos,
+                'mallas': registro.mallas,
+                'total_tallos': registro.total_tallos,
+                'responsable': registro.responsable,
+                'viaje': registro.viaje
+            })
+            
+            # Acumular totales
+            totales_por_variedad[prod_maestro][registro.variedad] += registro.total_tallos
+        
+        # Convertir a estructura serializable
+        datos_finales = {}
+        for prod_maestro in datos_agrupados:
+            datos_finales[prod_maestro] = {}
+            for variedad in datos_agrupados[prod_maestro]:
+                datos_finales[prod_maestro][variedad] = {
+                    'total_tallos': totales_por_variedad[prod_maestro][variedad],
+                    'dias': dict(datos_agrupados[prod_maestro][variedad])
+                }
+        
+        return jsonify({
+            'semana': semana_filtro,
+            'datos': datos_finales
+        })
+
+@app.route('/api/resumen/excel', methods=['GET'])
+def api_resumen_excel():
+    """
+    API endpoint que genera y descarga un archivo Excel con los datos del resumen.
+    Parámetros opcionales:
+    - semana: Formato AASS (ej: 2546). Si no se especifica, devuelve la semana actual.
+    
+    Ejemplo de uso:
+    - /api/resumen/excel?semana=2546
+    """
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+    from io import BytesIO
+    import pandas as pd
+    
+    # Obtener parámetros
+    semana_filtro = request.args.get('semana', '')
+    
+    # Cargar mapeo de variedades a productos maestros
+    maestro_productos = cargar_maestro_productos()
+    
+    # Obtener registros
+    if semana_filtro:
+        registros = RegistroCosecha.query.all()
+        registros_filtrados = []
+        for r in registros:
+            semana_registro = formato_semana(r.fecha)
+            if semana_registro == semana_filtro:
+                registros_filtrados.append(r)
+        registros = registros_filtrados
+    else:
+        # Semana actual por defecto
+        fecha_hoy = datetime.now().date()
+        dias_desde_lunes = fecha_hoy.weekday()
+        fecha_lunes = fecha_hoy - timedelta(days=dias_desde_lunes)
+        registros = RegistroCosecha.query.filter(
+            RegistroCosecha.fecha >= fecha_lunes
+        ).all()
+        semana_filtro = formato_semana(fecha_hoy)
+    
+    # Días de la semana
+    dias_semana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    
+    # Crear datos planos para Excel
+    datos_excel = []
+    
+    for registro in registros:
+        prod_maestro = maestro_productos.get(registro.variedad, 'SIN CLASIFICAR')
+        dia_semana_nombre = dias_semana[registro.fecha.weekday()]
+        
+        datos_excel.append({
+            'Semana': semana_filtro,
+            'Producto Maestro': prod_maestro,
+            'Variedad': registro.variedad,
+            'Fecha': registro.fecha,
+            'Día': dia_semana_nombre,
+            'Bloque/Módulo': registro.modulo,
+            'Hora Cosecha': registro.hora,
+            'Tallos/Malla': registro.tallos,
+            'Mallas': registro.mallas,
+            'Total Tallos': registro.total_tallos,
+            'Responsable': registro.responsable,
+            'Viaje': registro.viaje
+        })
+    
+    # Crear DataFrame
+    df = pd.DataFrame(datos_excel)
+    
+    # Crear archivo Excel en memoria
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Resumen Cosecha', index=False)
+        
+        # Ajustar ancho de columnas
+        worksheet = writer.sheets['Resumen Cosecha']
+        for idx, col in enumerate(df.columns):
+            max_length = max(
+                df[col].astype(str).apply(len).max(),
+                len(col)
+            ) + 2
+            worksheet.column_dimensions[chr(65 + idx)].width = min(max_length, 50)
+    
+    output.seek(0)
+    
+    # Nombre del archivo con la semana
+    filename = f'resumen_cosecha_semana_{semana_filtro}.xlsx'
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/api/semanas', methods=['GET'])
+def api_semanas_disponibles():
+    """
+    API endpoint que devuelve todas las semanas disponibles en la base de datos.
+    Útil para crear menús desplegables en Excel.
+    """
+    from flask import jsonify
+    
+    # Obtener todas las semanas únicas
+    todos_registros = RegistroCosecha.query.all()
+    semanas_disponibles = set()
+    
+    for r in todos_registros:
+        semanas_disponibles.add(formato_semana(r.fecha))
+    
+    # Ordenar semanas (más reciente primero)
+    semanas_ordenadas = sorted(list(semanas_disponibles), reverse=True)
+    
+    return jsonify({
+        'total': len(semanas_ordenadas),
+        'semanas': semanas_ordenadas
+    })
+
 if __name__ == '__main__':
     # Crear las tablas y migrar si es necesario
     with app.app_context():
