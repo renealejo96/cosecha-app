@@ -137,24 +137,29 @@
 
 <!-- Filtro de Semanas -->
 <div class="card mb-4 border-0 shadow-sm">
-    <div class="card-body">
-        <p class="pill-label mb-2">Seleccionar semana</p>
-        <div class="d-flex flex-wrap gap-2">
-            {% for semana in semanas_disponibles[:15] %}
-                <a href="{{ url_for('resumen', semana=semana) }}" 
-                   class="btn semana-btn {% if semana == semana_seleccionada %}active{% else %}btn-outline-secondary{% endif %}">
-                    {{ semana[:2] }}-{{ semana[2:] }}
-                </a>
-            {% endfor %}
-        </div>
-        {% if semana_seleccionada %}
-        <div class="mt-3">
-            <span class="badge bg-success fs-6">
-                <i class="fas fa-filter me-2"></i>
-                Semana activa: {{ semana_seleccionada[:2] }}-{{ semana_seleccionada[2:] }}
-            </span>
-        </div>
-        {% endif %}
+    <div class="card-body py-3">
+        <form method="GET" action="{{ url_for('resumen') }}" class="row g-2 align-items-center">
+            <div class="col-auto">
+                <label class="pill-label mb-0">Semana</label>
+            </div>
+            <div class="col-auto">
+                <select class="form-select form-select-sm" name="semana" onchange="this.form.submit()" style="min-width: 140px;">
+                    {% for semana in semanas_disponibles[:15] %}
+                    <option value="{{ semana }}" {% if semana == semana_seleccionada %}selected{% endif %}>
+                        {{ semana[:2] }}-{{ semana[2:] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if semana_seleccionada %}
+            <div class="col-auto">
+                <span class="badge bg-success">
+                    <i class="fas fa-check me-1"></i>
+                    Semana {{ semana_seleccionada[:2] }}-{{ semana_seleccionada[2:] }}
+                </span>
+            </div>
+            {% endif %}
+        </form>
     </div>
 </div>
 
@@ -168,6 +173,60 @@
         </h5>
     </div>
     <div class="card-body p-0">
+        <!-- TOTAL GENERAL POR DÍA (primero) -->
+        {% if totales_diarios.get(semana) %}
+        <div class="p-3" style="background: linear-gradient(90deg, #0d2328, #1f3b4d);">
+            <h6 class="text-white mb-0">
+                <i class="fas fa-chart-bar me-2"></i>
+                TOTAL GENERAL DE TALLOS POR DÍA
+            </h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table resumen-table mb-0">
+                <thead>
+                    <tr style="background-color: #1f3b4d;">
+                        <th class="text-white sticky-col" style="min-width: 220px; background-color: #1f3b4d;">
+                            <i class="fas fa-calendar-day me-1"></i>
+                            Día
+                        </th>
+                        {% for dia in dias_semana %}
+                        <th class="text-white text-center" style="min-width: 85px; background-color: #1f3b4d;">
+                            {{ dia[:3] }}
+                        </th>
+                        {% endfor %}
+                        <th class="col-total text-center" style="min-width: 100px;">
+                            <i class="fas fa-calculator me-1"></i>
+                            Total Semanal
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="total-general-row">
+                        <td class="sticky-col" style="background: linear-gradient(90deg, #0d2328, #1f3b4d);">
+                            <i class="fas fa-globe me-1"></i>
+                            TOTAL TALLOS
+                        </td>
+                        {% for i in range(7) %}
+                        <td>
+                            {% set total = totales_diarios.get(semana, {}).get(i, 0) %}
+                            {% if total > 0 %}
+                                <span class="badge bg-light text-dark fs-6">{{ "{:,}".format(total) }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td class="col-total">
+                            {% set total_semanal = totales_diarios.get(semana, {}).values()|sum %}
+                            <span class="badge-total fs-5">{{ "{:,}".format(total_semanal) }}</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        <!-- Productos y variedades -->
         {% for producto_maestro, variedades in productos.items()|sort %}
         <div class="border-bottom">
             <!-- Encabezado del Producto Maestro -->
@@ -250,59 +309,6 @@
             </div>
         </div>
         {% endfor %}
-        
-        <!-- Fila de TOTAL GENERAL POR DÍA (todas las variedades) -->
-        {% if totales_diarios.get(semana) %}
-        <div class="p-3" style="background: linear-gradient(90deg, #0d2328, #1f3b4d);">
-            <h6 class="text-white mb-0">
-                <i class="fas fa-chart-bar me-2"></i>
-                TOTAL GENERAL DE TALLOS POR DÍA
-            </h6>
-        </div>
-        <div class="table-responsive">
-            <table class="table resumen-table mb-0">
-                <thead>
-                    <tr style="background-color: #1f3b4d;">
-                        <th class="text-white sticky-col" style="min-width: 220px; background-color: #1f3b4d;">
-                            <i class="fas fa-calendar-day me-1"></i>
-                            Día
-                        </th>
-                        {% for dia in dias_semana %}
-                        <th class="text-white text-center" style="min-width: 85px; background-color: #1f3b4d;">
-                            {{ dia[:3] }}
-                        </th>
-                        {% endfor %}
-                        <th class="col-total text-center" style="min-width: 100px;">
-                            <i class="fas fa-calculator me-1"></i>
-                            Total Semanal
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="total-general-row">
-                        <td class="sticky-col" style="background: linear-gradient(90deg, #0d2328, #1f3b4d);">
-                            <i class="fas fa-globe me-1"></i>
-                            TOTAL TALLOS
-                        </td>
-                        {% for i in range(7) %}
-                        <td>
-                            {% set total = totales_diarios.get(semana, {}).get(i, 0) %}
-                            {% if total > 0 %}
-                                <span class="badge bg-light text-dark fs-6">{{ "{:,}".format(total) }}</span>
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        {% endfor %}
-                        <td class="col-total">
-                            {% set total_semanal = totales_diarios.get(semana, {}).values()|sum %}
-                            <span class="badge-total fs-5">{{ "{:,}".format(total_semanal) }}</span>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        {% endif %}
     </div>
 </div>
 {% endfor %}
