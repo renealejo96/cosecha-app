@@ -182,14 +182,75 @@ def formato_semana(fecha):
 
 @app.route('/')
 def index():
-    # Obtener todos los registros ordenados desde el más reciente hasta el más antiguo
-    # Primero por fecha_creacion, luego por fecha y hora como backup
-    registros = RegistroCosecha.query.order_by(
+    from math import ceil
+    
+    # Parámetros de paginación y filtros
+    page = request.args.get('page', 1, type=int)
+    per_page = 120
+    
+    # Filtros
+    filtro_fecha = request.args.get('fecha', '')
+    filtro_variedad = request.args.get('variedad', '')
+    filtro_modulo = request.args.get('modulo', '')
+    filtro_responsable = request.args.get('responsable', '')
+    filtro_semana = request.args.get('semana', '')
+    
+    # Query base
+    query = RegistroCosecha.query
+    
+    # Aplicar filtros
+    if filtro_fecha:
+        try:
+            fecha_filtro = datetime.strptime(filtro_fecha, '%Y-%m-%d').date()
+            query = query.filter(RegistroCosecha.fecha == fecha_filtro)
+        except:
+            pass
+    
+    if filtro_variedad:
+        query = query.filter(RegistroCosecha.variedad.ilike(f'%{filtro_variedad}%'))
+    
+    if filtro_modulo:
+        query = query.filter(RegistroCosecha.modulo.ilike(f'%{filtro_modulo}%'))
+    
+    if filtro_responsable:
+        query = query.filter(RegistroCosecha.responsable.ilike(f'%{filtro_responsable}%'))
+    
+    if filtro_semana:
+        query = query.filter(RegistroCosecha.semana == int(filtro_semana))
+    
+    # Ordenar y paginar
+    query = query.order_by(
         RegistroCosecha.fecha_creacion.desc(),
         RegistroCosecha.fecha.desc(), 
         RegistroCosecha.hora.desc()
-    ).all()
-    return render_template('index.html', registros=registros)
+    )
+    
+    total_registros = query.count()
+    total_pages = ceil(total_registros / per_page)
+    
+    registros = query.offset((page - 1) * per_page).limit(per_page).all()
+    
+    # Obtener listas únicas para los filtros
+    todas_variedades = sorted(set([r.variedad for r in RegistroCosecha.query.with_entities(RegistroCosecha.variedad).distinct()]))
+    todos_modulos = sorted(set([r.modulo for r in RegistroCosecha.query.with_entities(RegistroCosecha.modulo).distinct()]))
+    todos_responsables = sorted(set([r.responsable for r in RegistroCosecha.query.with_entities(RegistroCosecha.responsable).distinct()]))
+    todas_semanas = sorted(set([r.semana for r in RegistroCosecha.query.with_entities(RegistroCosecha.semana).distinct()]), reverse=True)
+    
+    return render_template('index.html', 
+                         registros=registros,
+                         page=page,
+                         total_pages=total_pages,
+                         total_registros=total_registros,
+                         per_page=per_page,
+                         filtro_fecha=filtro_fecha,
+                         filtro_variedad=filtro_variedad,
+                         filtro_modulo=filtro_modulo,
+                         filtro_responsable=filtro_responsable,
+                         filtro_semana=filtro_semana,
+                         todas_variedades=todas_variedades,
+                         todos_modulos=todos_modulos,
+                         todos_responsables=todos_responsables,
+                         todas_semanas=todas_semanas)
 
 @app.route('/nuevo', methods=['GET', 'POST'])
 def nuevo_registro():
@@ -493,16 +554,21 @@ def estimados():
         if variedad not in productos_con_variedades[producto]:
             productos_con_variedades[producto].append(variedad)
     
+    # Obtener estimados para la semana seleccionada
+    estimados = Estimado.query.filter_by(semana=semana_filtro).all()
+    estimados_dict = {(e.producto_maestro, e.variedad): e for e in estimados}
+    
+    # Asegurar que los productos/variedades existentes en la BD se visualicen aunque no estén en el CSV
+    for producto_maestro, variedad in estimados_dict.keys():
+        if variedad not in productos_con_variedades[producto_maestro]:
+            productos_con_variedades[producto_maestro].append(variedad)
+    
     # Ordenar variedades dentro de cada producto
     for producto in productos_con_variedades:
         productos_con_variedades[producto].sort()
     
     # Obtener todos los productos maestros únicos ordenados
     productos_maestros = sorted(productos_con_variedades.keys())
-    
-    # Obtener estimados para la semana seleccionada
-    estimados = Estimado.query.filter_by(semana=semana_filtro).all()
-    estimados_dict = {(e.producto_maestro, e.variedad): e for e in estimados}
     
     # Calcular totales reales de la semana para cada variedad
     todos_registros = RegistroCosecha.query.all()
@@ -514,6 +580,7 @@ def estimados():
         totales_reales_variedad[registro.variedad] += registro.total_tallos
     
     # Preparar datos agrupados por producto maestro
+    # Solo mostrar productos que tienen al menos un estimado
     datos_por_producto = []
     for producto in productos_maestros:
         variedades_data = []
@@ -527,11 +594,7 @@ def estimados():
             if estimado_obj:
                 cantidad_estimada = estimado_obj.cantidad_estimada
                 cantidad_real = totales_reales_variedad.get(variedad, 0)
-                
-                if cantidad_estimada > 0:
-                    porcentaje = round((cantidad_real / cantidad_estimada) * 100, 2)
-                else:
-                    porcentaje = 0
+                porcentaje = round((cantidad_real / cantidad_estimada) * 100, 2) if cantidad_estimada > 0 else None
                 
                 variedades_data.append({
                     'variedad': variedad,
@@ -546,7 +609,6 @@ def estimados():
         
         # Solo agregar el producto si tiene al menos una variedad con estimado
         if variedades_data:
-            # Calcular porcentaje del producto
             if total_estimado_producto > 0:
                 porcentaje_producto = round((total_real_producto / total_estimado_producto) * 100, 2)
             else:
@@ -576,38 +638,56 @@ def estimados():
 
 @app.route('/estimados/guardar', methods=['POST'])
 def guardar_estimado():
-    """Guardar o actualizar un estimado"""
+    """Guardar o actualizar uno o varios estimados (formulario con arrays)"""
     try:
         semana = request.form['semana']
         producto_maestro = request.form['producto_maestro']
-        variedad = request.form['variedad']
-        cantidad_estimada = int(request.form['cantidad_estimada'])
         
-        # Buscar si ya existe un estimado para esta semana, producto y variedad
-        estimado = Estimado.query.filter_by(
-            semana=semana,
-            producto_maestro=producto_maestro,
-            variedad=variedad
-        ).first()
+        # Soportar arrays (variedad[] y cantidad_estimada[])
+        variedades = request.form.getlist('variedad[]')
+        cantidades = request.form.getlist('cantidad_estimada[]')
         
-        if estimado:
-            # Actualizar existente
-            estimado.cantidad_estimada = cantidad_estimada
-            estimado.fecha_modificacion = datetime.now()
-            mensaje = f'Estimado actualizado: {variedad} - {cantidad_estimada:,} tallos'
-        else:
-            # Crear nuevo
-            estimado = Estimado(
+        # Fallback para formularios con campos simples (edición desde tabla)
+        if not variedades:
+            variedades = [request.form.get('variedad')]
+            cantidades = [request.form.get('cantidad_estimada')]
+        
+        guardados = 0
+        actualizados = 0
+        
+        for variedad, cantidad_str in zip(variedades, cantidades):
+            if not variedad or not cantidad_str:
+                continue
+            cantidad_estimada = int(cantidad_str)
+            
+            # Buscar si ya existe un estimado para esta semana, producto y variedad
+            estimado = Estimado.query.filter_by(
                 semana=semana,
                 producto_maestro=producto_maestro,
-                variedad=variedad,
-                cantidad_estimada=cantidad_estimada
-            )
-            db.session.add(estimado)
-            mensaje = f'Estimado guardado: {variedad} - {cantidad_estimada:,} tallos'
+                variedad=variedad
+            ).first()
+            
+            if estimado:
+                estimado.cantidad_estimada = cantidad_estimada
+                estimado.fecha_modificacion = datetime.now()
+                actualizados += 1
+            else:
+                estimado = Estimado(
+                    semana=semana,
+                    producto_maestro=producto_maestro,
+                    variedad=variedad,
+                    cantidad_estimada=cantidad_estimada
+                )
+                db.session.add(estimado)
+                guardados += 1
         
         db.session.commit()
-        flash(mensaje, 'success')
+        
+        if guardados + actualizados > 0:
+            mensaje = f'Estimados procesados: {guardados} nuevos, {actualizados} actualizados'
+            flash(mensaje, 'success')
+        else:
+            flash('No se procesaron estimados. Verifique los datos ingresados.', 'warning')
         
     except Exception as e:
         flash(f'Error al guardar estimado: {str(e)}', 'error')

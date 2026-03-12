@@ -3,43 +3,155 @@
 {% block title %}Resumen por Semana{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h3 mb-0">
-        <i class="fas fa-calendar-week text-primary me-2"></i>
-        Resumen por Semana
-    </h1>
-    <button class="btn btn-info" onclick="mostrarDetalleCompleto()">
+<style>
+    .resumen-hero h1 {
+        font-weight: 600;
+        letter-spacing: 0.01em;
+    }
+    .pill-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #5e6a72;
+    }
+    .semana-btn {
+        border-radius: 0.75rem;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s;
+    }
+    .semana-btn.active {
+        background: linear-gradient(90deg, #0c5d3f, #12b886);
+        border-color: transparent;
+        color: #fff;
+    }
+    .producto-header {
+        background: linear-gradient(90deg, #0c5d3f, #12b886);
+        border-radius: 0.75rem 0.75rem 0 0;
+        padding: 1rem 1.25rem;
+    }
+    .resumen-table {
+        font-size: 0.9rem;
+        margin-bottom: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .resumen-table thead th {
+        background-color: #f6f4ee;
+        border-bottom: 2px solid rgba(31, 59, 77, 0.12);
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        color: #1f3b4d;
+        padding: 0.75rem 0.5rem;
+        text-align: center;
+        vertical-align: middle;
+    }
+    .resumen-table thead th:first-child {
+        text-align: left;
+        padding-left: 1rem;
+    }
+    .resumen-table tbody tr {
+        transition: background-color 0.15s;
+    }
+    .resumen-table tbody tr:hover {
+        background-color: rgba(18, 184, 134, 0.12) !important;
+    }
+    .resumen-table tbody tr:hover td {
+        background-color: rgba(18, 184, 134, 0.12) !important;
+    }
+    .resumen-table tbody td {
+        padding: 0.65rem 0.5rem;
+        vertical-align: middle;
+        text-align: center;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    .resumen-table tbody td:first-child {
+        text-align: left;
+        padding-left: 1rem;
+        font-weight: 500;
+    }
+    .resumen-table tfoot tr {
+        background: linear-gradient(90deg, rgba(12,93,63,0.08), rgba(18,184,134,0.08));
+    }
+    .resumen-table tfoot td {
+        padding: 0.85rem 0.5rem;
+        font-weight: 600;
+        text-align: center;
+        border-top: 2px solid rgba(12,93,63,0.15);
+    }
+    .resumen-table tfoot td:first-child {
+        text-align: left;
+        padding-left: 1rem;
+    }
+    .col-total {
+        background-color: rgba(255, 193, 7, 0.18) !important;
+        font-weight: 600;
+    }
+    .total-general-row {
+        background: linear-gradient(90deg, #0d2328, #1f3b4d);
+    }
+    .total-general-row td {
+        color: #fff;
+        font-size: 1rem;
+    }
+    .badge-valor {
+        background-color: rgba(18, 184, 134, 0.15);
+        color: #0c5d3f;
+        font-weight: 600;
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.82rem;
+    }
+    .badge-total {
+        background-color: #ffc107;
+        color: #212529;
+        font-weight: 700;
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+    }
+    .sticky-col {
+        position: sticky;
+        left: 0;
+        z-index: 5;
+        background-color: inherit;
+    }
+    .resumen-table tbody tr:hover .sticky-col {
+        background-color: rgba(18, 184, 134, 0.12) !important;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4 resumen-hero">
+    <div>
+        <p class="pill-label mb-1">Vista semanal</p>
+        <h1 class="h3 mb-0">
+            <i class="fas fa-calendar-week me-2 text-success"></i>
+            Resumen por Semana
+        </h1>
+    </div>
+    <button class="btn btn-outline-primary" onclick="mostrarDetalleCompleto()">
         <i class="fas fa-chart-bar me-2"></i>
         Ver Detalle por Bloques
     </button>
 </div>
 
 <!-- Filtro de Semanas -->
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">
-            <i class="fas fa-filter me-2"></i>
-            Seleccionar Semana
-        </h5>
-    </div>
+<div class="card mb-4 border-0 shadow-sm">
     <div class="card-body">
-        <div class="row">
-            <div class="col-12">
-                <div class="btn-group flex-wrap" role="group">
-                    {% for semana in semanas_disponibles[:15] %}
-                        <a href="{{ url_for('resumen', semana=semana) }}" 
-                           class="btn {% if semana == semana_seleccionada %}btn-primary{% else %}btn-outline-primary{% endif %}">
-                            {{ semana[:2] }}-{{ semana[2:] }}
-                        </a>
-                    {% endfor %}
-                </div>
-            </div>
+        <p class="pill-label mb-2">Seleccionar semana</p>
+        <div class="d-flex flex-wrap gap-2">
+            {% for semana in semanas_disponibles[:15] %}
+                <a href="{{ url_for('resumen', semana=semana) }}" 
+                   class="btn semana-btn {% if semana == semana_seleccionada %}active{% else %}btn-outline-secondary{% endif %}">
+                    {{ semana[:2] }}-{{ semana[2:] }}
+                </a>
+            {% endfor %}
         </div>
         {% if semana_seleccionada %}
         <div class="mt-3">
-            <span class="badge bg-info fs-6">
+            <span class="badge bg-success fs-6">
                 <i class="fas fa-filter me-2"></i>
-                Semana: {{ semana_seleccionada[:2] }}-{{ semana_seleccionada[2:] }}
+                Semana activa: {{ semana_seleccionada[:2] }}-{{ semana_seleccionada[2:] }}
             </span>
         </div>
         {% endif %}
@@ -48,8 +160,8 @@
 
 <!-- Resumen por Producto Maestro → Variedad -->
 {% for semana, productos in datos.items()|sort(reverse=True) %}
-<div class="card mb-4">
-    <div class="card-header bg-success text-white">
+<div class="card mb-4 border-0 shadow-sm overflow-hidden">
+    <div class="card-header bg-dark text-white py-3">
         <h5 class="mb-0">
             <i class="fas fa-calendar-alt me-2"></i>
             Semana {{ semana[:2] }}-{{ semana[2:] }}
@@ -59,140 +171,136 @@
         {% for producto_maestro, variedades in productos.items()|sort %}
         <div class="border-bottom">
             <!-- Encabezado del Producto Maestro -->
-            <div class="bg-primary text-white p-3">
-                <h5 class="mb-0">
+            <div class="producto-header text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-semibold">
                     <i class="fas fa-box me-2"></i>
                     {{ producto_maestro }}
-                    <span class="badge bg-light text-primary ms-2">{{ variedades|length }} variedad(es)</span>
                 </h5>
+                <span class="badge bg-light text-success">{{ variedades|length }} variedad(es)</span>
             </div>
-        <div class="table-responsive">
-            <table class="table table-sm table-hover mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th style="min-width: 200px; position: sticky; left: 0; background-color: #f8f9fa; z-index: 10;">
-                            <i class="fas fa-seedling me-1"></i>
-                            Variedad
-                        </th>
-                        {% for dia in dias_semana %}
-                        <th class="text-center" style="min-width: 90px;">
-                            {{ dia[:3] }}
-                        </th>
-                        {% endfor %}
-                        <th class="text-center bg-warning" style="min-width: 100px;">
-                            <i class="fas fa-calculator me-1"></i>
-                            Total
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for variedad, dias in variedades.items()|sort %}
-                    <tr>
-                        <td class="fw-bold" style="position: sticky; left: 0; background-color: white; z-index: 9;">
-                            <i class="fas fa-leaf me-1 text-success"></i>
-                            {{ variedad }}
-                        </td>
-                        {% for i in range(7) %}
-                            {% set valor = dias.get(i, 0) %}
-                            <td class="text-center">
-                                {% if valor > 0 %}
-                                    <span class="badge bg-success">{{ "{:,}".format(valor) }}</span>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                        {% endfor %}
-                        <td class="text-center bg-warning fw-bold">
-                            {{ "{:,}".format(dias.values()|sum) }}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                <tfoot class="table-info">
-                    <tr class="fw-bold">
-                        <td style="position: sticky; left: 0; background-color: #d1ecf1; z-index: 9;">
-                            <i class="fas fa-chart-line me-1"></i>
-                            TOTAL {{ producto_maestro }}
-                        </td>
-                        {% for i in range(7) %}
-                            {% set total_dia = namespace(value=0) %}
-                            {% for variedad, dias in variedades.items() %}
-                                {% set total_dia.value = total_dia.value + dias.get(i, 0) %}
+            <div class="table-responsive">
+                <table class="table resumen-table">
+                    <thead>
+                        <tr>
+                            <th class="sticky-col" style="min-width: 220px; background-color: #f6f4ee;">
+                                <i class="fas fa-seedling me-1"></i>
+                                Variedad
+                            </th>
+                            {% for dia in dias_semana %}
+                            <th style="min-width: 85px;">{{ dia[:3] }}</th>
                             {% endfor %}
-                            <td class="text-center">
-                                {% if total_dia.value > 0 %}
-                                    {{ "{:,}".format(total_dia.value) }}
-                                {% else %}
-                                    -
-                                {% endif %}
+                            <th class="col-total" style="min-width: 100px;">
+                                <i class="fas fa-calculator me-1"></i>
+                                Total
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for variedad, dias in variedades.items()|sort %}
+                        <tr>
+                            <td class="sticky-col" style="background-color: #fff;">
+                                <i class="fas fa-leaf me-1 text-success"></i>
+                                {{ variedad }}
                             </td>
-                        {% endfor %}
-                        <td class="text-center bg-warning">
-                            {% set gran_total = namespace(value=0) %}
-                            {% for variedad, dias in variedades.items() %}
-                                {% set gran_total.value = gran_total.value + dias.values()|sum %}
+                            {% for i in range(7) %}
+                                {% set valor = dias.get(i, 0) %}
+                                <td>
+                                    {% if valor > 0 %}
+                                        <span class="badge-valor">{{ "{:,}".format(valor) }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
                             {% endfor %}
-                            {{ "{:,}".format(gran_total.value) }}
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
+                            <td class="col-total">
+                                <span class="badge-total">{{ "{:,}".format(dias.values()|sum) }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td class="sticky-col" style="background: linear-gradient(90deg, rgba(12,93,63,0.08), rgba(18,184,134,0.08));">
+                                <i class="fas fa-chart-line me-1"></i>
+                                TOTAL {{ producto_maestro }}
+                            </td>
+                            {% for i in range(7) %}
+                                {% set total_dia = namespace(value=0) %}
+                                {% for variedad, dias in variedades.items() %}
+                                    {% set total_dia.value = total_dia.value + dias.get(i, 0) %}
+                                {% endfor %}
+                                <td>
+                                    {% if total_dia.value > 0 %}
+                                        {{ "{:,}".format(total_dia.value) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                            <td class="col-total">
+                                {% set gran_total = namespace(value=0) %}
+                                {% for variedad, dias in variedades.items() %}
+                                    {% set gran_total.value = gran_total.value + dias.values()|sum %}
+                                {% endfor %}
+                                <span class="badge-total">{{ "{:,}".format(gran_total.value) }}</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
         {% endfor %}
         
         <!-- Fila de TOTAL GENERAL POR DÍA (todas las variedades) -->
         {% if totales_diarios.get(semana) %}
-        <div class="border-top mt-3">
-            <div class="bg-dark text-white p-3">
-                <h5 class="mb-0">
-                    <i class="fas fa-chart-bar me-2"></i>
-                    TOTAL GENERAL DE TALLOS POR DÍA
-                </h5>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-sm mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th style="min-width: 200px; position: sticky; left: 0; background-color: #212529; z-index: 10;">
-                                <i class="fas fa-calendar-day me-1"></i>
-                                Día
-                            </th>
-                            {% for dia in dias_semana %}
-                            <th class="text-center" style="min-width: 90px;">
-                                {{ dia[:3] }}
-                            </th>
-                            {% endfor %}
-                            <th class="text-center bg-warning text-dark" style="min-width: 100px;">
-                                <i class="fas fa-calculator me-1"></i>
-                                Total Semanal
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="table-success fw-bold">
-                            <td style="position: sticky; left: 0; background-color: #d1e7dd; z-index: 9;">
-                                <i class="fas fa-globe me-1"></i>
-                                TOTAL TALLOS
-                            </td>
-                            {% for i in range(7) %}
-                            <td class="text-center">
-                                {% set total = totales_diarios.get(semana, {}).get(i, 0) %}
-                                {% if total > 0 %}
-                                    <span class="badge bg-dark fs-6">{{ "{:,}".format(total) }}</span>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            {% endfor %}
-                            <td class="text-center bg-warning fw-bold">
-                                {% set total_semanal = totales_diarios.get(semana, {}).values()|sum %}
-                                <span class="fs-5">{{ "{:,}".format(total_semanal) }}</span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div class="p-3" style="background: linear-gradient(90deg, #0d2328, #1f3b4d);">
+            <h6 class="text-white mb-0">
+                <i class="fas fa-chart-bar me-2"></i>
+                TOTAL GENERAL DE TALLOS POR DÍA
+            </h6>
+        </div>
+        <div class="table-responsive">
+            <table class="table resumen-table mb-0">
+                <thead>
+                    <tr style="background-color: #1f3b4d;">
+                        <th class="text-white sticky-col" style="min-width: 220px; background-color: #1f3b4d;">
+                            <i class="fas fa-calendar-day me-1"></i>
+                            Día
+                        </th>
+                        {% for dia in dias_semana %}
+                        <th class="text-white text-center" style="min-width: 85px; background-color: #1f3b4d;">
+                            {{ dia[:3] }}
+                        </th>
+                        {% endfor %}
+                        <th class="col-total text-center" style="min-width: 100px;">
+                            <i class="fas fa-calculator me-1"></i>
+                            Total Semanal
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="total-general-row">
+                        <td class="sticky-col" style="background: linear-gradient(90deg, #0d2328, #1f3b4d);">
+                            <i class="fas fa-globe me-1"></i>
+                            TOTAL TALLOS
+                        </td>
+                        {% for i in range(7) %}
+                        <td>
+                            {% set total = totales_diarios.get(semana, {}).get(i, 0) %}
+                            {% if total > 0 %}
+                                <span class="badge bg-light text-dark fs-6">{{ "{:,}".format(total) }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td class="col-total">
+                            {% set total_semanal = totales_diarios.get(semana, {}).values()|sum %}
+                            <span class="badge-total fs-5">{{ "{:,}".format(total_semanal) }}</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
         {% endif %}
     </div>
@@ -200,7 +308,7 @@
 {% endfor %}
 
 {% if not datos %}
-<div class="alert alert-info">
+<div class="alert alert-info border-0 shadow-sm">
     <i class="fas fa-info-circle me-2"></i>
     No hay registros para mostrar en la semana seleccionada.
 </div>
@@ -208,22 +316,22 @@
 
 <!-- Modal/Sección de Detalle por Bloque -->
 <div class="modal fade" id="modalDetalleBloque" tabindex="-1" aria-labelledby="modalDetalleBloqueLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title" id="modalDetalleBloqueLabel">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header" style="background: linear-gradient(90deg, #0c5d3f, #12b886);">
+                <h5 class="modal-title text-white" id="modalDetalleBloqueLabel">
                     <i class="fas fa-building me-2"></i>
                     Detalle por Bloque
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div id="contenidoDetalleBloque" style="max-height: 70vh; overflow-y: auto;">
+                <div id="contenidoDetalleBloque">
                     <!-- El contenido se cargará dinámicamente -->
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
                     <i class="fas fa-times me-1"></i>
                     Cerrar
                 </button>
@@ -249,6 +357,17 @@
     #contenidoDetalleBloque th[style*="position: sticky"],
     #contenidoDetalleBloque td[style*="position: sticky"] {
         box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+    }
+    
+    /* Estilo para tablas en el modal */
+    #contenidoDetalleBloque .table {
+        font-size: 0.88rem;
+    }
+    #contenidoDetalleBloque .table tbody tr:hover {
+        background-color: rgba(18, 184, 134, 0.12) !important;
+    }
+    #contenidoDetalleBloque .table tbody tr:hover td {
+        background-color: rgba(18, 184, 134, 0.12) !important;
     }
 </style>
 

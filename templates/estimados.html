@@ -3,13 +3,59 @@
 {% block title %}Estimados Semanales - Registro de Cosecha{% endblock %}
 
 {% block content %}
+<style>
+    .estimados-hero h2 {
+        font-weight: 600;
+        letter-spacing: 0.01em;
+    }
+    .estimados-hero p {
+        color: #4f6272;
+    }
+    .variedad-row {
+        background: rgba(18, 184, 134, 0.08);
+        border-radius: 1rem;
+        padding: 1rem;
+    }
+    .variedad-row .form-select,
+    .variedad-row .form-control {
+        background-color: #ffffff;
+    }
+    .variedad-row .btn {
+        border-radius: 0.75rem;
+    }
+    #btnAgregarVariedad {
+        border-radius: 0.75rem;
+    }
+    .gauge-card {
+        background: linear-gradient(135deg, rgba(12, 93, 63, 0.08), rgba(18, 184, 134, 0.08));
+    }
+    .pill-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #5e6a72;
+    }
+    .metric-card {
+        border-radius: 1.35rem;
+        padding: 1.35rem 1.5rem;
+        background: #ffffff;
+        box-shadow: 0 20px 40px rgba(6, 79, 59, 0.08);
+    }
+    .metric-card.success { background: rgba(18, 184, 134, 0.12); }
+    .metric-card.info { background: rgba(13, 99, 212, 0.12); }
+    .metric-card.warning { background: rgba(255, 193, 7, 0.12); }
+    .gauge-wrapper {
+        max-width: 520px;
+        margin: 0 auto;
+    }
+</style>
 <div class="row mb-4">
-    <div class="col-12">
-        <h2 class="mb-0">
+    <div class="col-12 estimados-hero">
+        <h2 class="mb-1">
             <i class="fas fa-chart-line me-2"></i>
             Estimados Semanales por Variedad
         </h2>
-        <p class="text-muted">Gestiona tus estimados de producción por variedad y monitorea el cumplimiento</p>
+        <p class="mb-0">Registra diferentes variedades por producto sin salir de la página y visualiza el cumplimiento al instante.</p>
     </div>
 </div>
 
@@ -35,58 +81,53 @@
 </div>
 
 <!-- Formulario para Agregar/Editar Estimado -->
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">
-            <i class="fas fa-edit me-2"></i>
-            Ingresar Estimado por Variedad
-        </h5>
+<div class="card mb-5">
+    <div class="card-header bg-transparent border-0 pt-4 px-4">
+        <div class="d-flex justify-content-between flex-wrap gap-2 align-items-center">
+            <div>
+                <p class="pill-label mb-1">Nuevo estimado</p>
+                <h4 class="mb-0">Carga múltiples variedades en un solo paso</h4>
+            </div>
+            <span class="badge bg-light text-dark">Semana {{ semana_seleccionada }}</span>
+        </div>
     </div>
-    <div class="card-body">
-        <form method="POST" action="{{ url_for('guardar_estimado') }}" id="formEstimado">
+    <div class="card-body pt-0 px-4 pb-4">
+        <form method="POST" action="{{ url_for('guardar_estimado') }}" id="formEstimado" class="mt-3">
             <input type="hidden" name="semana" value="{{ semana_seleccionada }}">
-            <input type="hidden" name="producto_maestro" id="producto_maestro_hidden">
             
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="producto_maestro_select" class="form-label">
-                        <i class="fas fa-box me-1"></i>
-                        Producto Maestro
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <label for="producto_maestro_select" class="form-label fw-semibold">
+                        <i class="fas fa-box me-1 text-success"></i>
+                        Producto maestro
                     </label>
-                    <select class="form-select" id="producto_maestro_select" required onchange="cargarVariedades()">
+                    <select class="form-select form-select-lg" id="producto_maestro_select" name="producto_maestro" required>
                         <option value="">Seleccionar producto...</option>
                         {% for producto, variedades in productos_con_variedades.items()|sort %}
                         <option value="{{ producto }}">{{ producto }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                
-                <div class="col-md-3">
-                    <label for="variedad" class="form-label">
-                        <i class="fas fa-seedling me-1"></i>
-                        Variedad
-                    </label>
-                    <select class="form-select" id="variedad" name="variedad" required disabled>
-                        <option value="">Primero seleccione producto...</option>
-                    </select>
+                <div class="col-lg-8">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label fw-semibold mb-0">
+                            <i class="fas fa-seedling me-1 text-success"></i>
+                            Variedades y cantidades
+                        </label>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnAgregarVariedad">
+                            <i class="fas fa-plus me-1"></i>
+                            Añadir variedad
+                        </button>
+                    </div>
+                    <div id="variedadesContainer" class="d-flex flex-column gap-3"></div>
                 </div>
-                
-                <div class="col-md-3">
-                    <label for="cantidad_estimada" class="form-label">
-                        <i class="fas fa-calculator me-1"></i>
-                        Cantidad Estimada (tallos)
-                    </label>
-                    <input type="number" class="form-control" id="cantidad_estimada" 
-                           name="cantidad_estimada" required min="0" step="1"
-                           placeholder="Ej: 12500">
-                </div>
-                
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-success w-100">
-                        <i class="fas fa-save me-2"></i>
-                        Guardar
-                    </button>
-                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-4">
+                <button type="submit" class="btn btn-success btn-lg px-4">
+                    <i class="fas fa-save me-2"></i>
+                    Guardar estimados
+                </button>
             </div>
         </form>
     </div>
@@ -95,13 +136,16 @@
 <!-- Tablas de Cumplimiento por Producto Maestro -->
 {% if datos_por_producto %}
     {% for dato_producto in datos_por_producto %}
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-box me-2"></i>
-                    {{ dato_producto.producto }}
-                </h5>
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <p class="pill-label mb-1">Producto maestro</p>
+                    <h5 class="mb-0">
+                        <i class="fas fa-box me-2 text-success"></i>
+                        {{ dato_producto.producto }}
+                    </h5>
+                </div>
                 <div>
                     {% if dato_producto.total_estimado > 0 %}
                         {% if dato_producto.porcentaje >= 100 %}
@@ -126,8 +170,8 @@
                 </div>
             </div>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
+        <div class="card-body p-0 px-4 pb-4">
+            <div class="table-responsive rounded-3">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
@@ -188,17 +232,17 @@
                             </td>
                             <td class="text-center">
                                 {% if var_dato.id %}
-                                <button type="button" class="btn btn-sm btn-warning" 
+                                <button type="button" class="btn btn-sm btn-outline-warning" 
                                         onclick="editarEstimado('{{ dato_producto.producto }}', '{{ var_dato.variedad }}', {{ var_dato.estimado }})">
                                     <i class="fas fa-edit"></i>
                                 </button>
                                 <a href="{{ url_for('eliminar_estimado', id=var_dato.id) }}" 
-                                   class="btn btn-sm btn-danger"
+                                   class="btn btn-sm btn-outline-danger"
                                    onclick="return confirm('¿Estás seguro de eliminar este estimado?')">
                                     <i class="fas fa-trash"></i>
                                 </a>
                                 {% else %}
-                                <button type="button" class="btn btn-sm btn-success" 
+                                <button type="button" class="btn btn-sm btn-outline-primary" 
                                         onclick="editarEstimado('{{ dato_producto.producto }}', '{{ var_dato.variedad }}', 0)">
                                     <i class="fas fa-plus"></i> Agregar
                                 </button>
@@ -244,88 +288,74 @@
     {% endfor %}
 
     <!-- Resumen General -->
-    <div class="card bg-light">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0">
-                <i class="fas fa-chart-bar me-2"></i>
-                Resumen General - Semana {{ semana_seleccionada }}
-            </h5>
-        </div>
-        <div class="card-body">
-            {% set total_estimado_global = datos_por_producto|sum(attribute='total_estimado') %}
-            {% set total_real_global = datos_por_producto|sum(attribute='total_real') %}
-            {% if total_estimado_global > 0 %}
-                {% set cumplimiento_global = (total_real_global / total_estimado_global * 100)|round(2) %}
-            {% else %}
-                {% set cumplimiento_global = 0 %}
-            {% endif %}
-            
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h6 class="text-muted">Total Estimado</h6>
-                            <h3 class="text-primary">
-                                {{ "{:,}".format(total_estimado_global) }}
-                            </h3>
-                            <small>tallos</small>
-                        </div>
+    {% set total_estimado_global = datos_por_producto|sum(attribute='total_estimado') %}
+    {% set total_real_global = datos_por_producto|sum(attribute='total_real') %}
+    {% if total_estimado_global > 0 %}
+        {% set cumplimiento_global = (total_real_global / total_estimado_global * 100)|round(2) %}
+    {% else %}
+        {% set cumplimiento_global = 0 %}
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+                <div>
+                    <p class="pill-label mb-1">Panorama semanal</p>
+                    <h4 class="mb-0">Resumen general - Semana {{ semana_seleccionada }}</h4>
+                </div>
+                <span class="badge bg-light text-success border border-success fw-semibold">
+                    {{ "{:,}".format(total_estimado_global) }} tallos estimados
+                </span>
+            </div>
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <div class="metric-card success h-100">
+                        <p class="pill-label mb-2">Total estimado</p>
+                        <h2 class="mb-0 text-success">{{ "{:,}".format(total_estimado_global) }}</h2>
+                        <small class="text-muted">tallos programados</small>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h6 class="text-muted">Total Real</h6>
-                            <h3 class="text-success">
-                                {{ "{:,}".format(total_real_global) }}
-                            </h3>
-                            <small>tallos</small>
-                        </div>
+                <div class="col-lg-4">
+                    <div class="metric-card info h-100">
+                        <p class="pill-label mb-2">Total real</p>
+                        <h2 class="mb-0 text-primary">{{ "{:,}".format(total_real_global) }}</h2>
+                        <small class="text-muted">tallos cosechados</small>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card text-center">
-                        <div class="card-body">
-                            <h6 class="text-muted">Cumplimiento Global</h6>
-                            {% if total_estimado_global > 0 %}
-                                <h3 class="{% if cumplimiento_global >= 100 %}text-success{% elif cumplimiento_global >= 75 %}text-info{% elif cumplimiento_global >= 50 %}text-warning{% else %}text-danger{% endif %}">
-                                    {{ cumplimiento_global }}%
-                                </h3>
-                            {% else %}
-                                <h3 class="text-muted">-</h3>
-                            {% endif %}
-                            <small>de lo estimado</small>
-                        </div>
+                <div class="col-lg-4">
+                    <div class="metric-card warning h-100">
+                        <p class="pill-label mb-2">Cumplimiento global</p>
+                        {% if total_estimado_global > 0 %}
+                            <h2 class="mb-0 {% if cumplimiento_global >= 100 %}text-success{% elif cumplimiento_global >= 75 %}text-info{% elif cumplimiento_global >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                {{ cumplimiento_global }}%
+                            </h2>
+                        {% else %}
+                            <h2 class="mb-0 text-muted">-</h2>
+                        {% endif %}
+                        <small class="text-muted">de lo estimado</small>
                     </div>
                 </div>
             </div>
-            
-            <!-- Velocímetro de Cumplimiento -->
-            {% if total_estimado_global > 0 %}
-            <div class="row mt-4">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-body text-center">
-                            <h5 class="mb-3">
-                                <i class="fas fa-tachometer-alt me-2"></i>
-                                Velocímetro de Cumplimiento
-                            </h5>
-                            <div style="max-width: 400px; margin: 0 auto;">
-                                <canvas id="gaugeChart"></canvas>
-                            </div>
-                            <div class="mt-3">
-                                <h2 class="mb-0 {% if cumplimiento_global >= 100 %}text-success{% elif cumplimiento_global >= 75 %}text-info{% elif cumplimiento_global >= 50 %}text-warning{% else %}text-danger{% endif %}">
-                                    {{ cumplimiento_global }}%
-                                </h2>
-                                <p class="text-muted mb-0">de cumplimiento</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
+
+    {% if total_estimado_global > 0 %}
+    <div class="card gauge-card border-0 shadow-sm mb-4">
+        <div class="card-body text-center p-4">
+            <p class="pill-label mb-2">Velocímetro de cumplimiento</p>
+            <h4 class="mb-4">¿Qué tan cerca estamos del objetivo?</h4>
+            <div class="gauge-wrapper">
+                <canvas id="gaugeChart" height="260"></canvas>
+            </div>
+            <div class="mt-4">
+                <h2 class="mb-0 {% if cumplimiento_global >= 100 %}text-success{% elif cumplimiento_global >= 75 %}text-info{% elif cumplimiento_global >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                    {{ cumplimiento_global }}%
+                </h2>
+                <p class="text-muted mb-0">de cumplimiento</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
 {% else %}
 <div class="alert alert-info">
@@ -341,6 +371,7 @@
 <script>
 // Datos de variedades por producto
 const productosConVariedades = {{ productos_con_variedades|tojson|safe }};
+let rowIndex = 0;
 
 {% if datos_por_producto %}
 // Calcular cumplimiento global
@@ -352,12 +383,12 @@ if (totalEstimado > 0) {
     // Crear velocímetro de cumplimiento
     const gaugeData = {
         datasets: [{
-            data: [cumplimientoGlobal, Math.max(0, 100 - cumplimientoGlobal)],
+            data: [Math.min(cumplimientoGlobal, 100), Math.max(0, 100 - cumplimientoGlobal)],
             backgroundColor: [
-                cumplimientoGlobal >= 100 ? '#28a745' :
-                cumplimientoGlobal >= 75 ? '#17a2b8' :
+                cumplimientoGlobal >= 100 ? '#0c5d3f' :
+                cumplimientoGlobal >= 75 ? '#12b886' :
                 cumplimientoGlobal >= 50 ? '#ffc107' : '#dc3545',
-                '#e9ecef'
+                'rgba(0,0,0,0.06)'
             ],
             borderWidth: 0,
             circumference: 180,
@@ -367,15 +398,11 @@ if (totalEstimado > 0) {
 
     const gaugeOptions = {
         responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 2,
+        maintainAspectRatio: false,
+        cutout: '78%',
         plugins: {
-            legend: {
-                display: false
-            },
-            tooltip: {
-                enabled: false
-            }
+            legend: { display: false },
+            tooltip: { enabled: false }
         }
     };
 
@@ -390,51 +417,74 @@ if (totalEstimado > 0) {
 }
 {% endif %}
 
-function cargarVariedades() {
-    const productoSelect = document.getElementById('producto_maestro_select');
-    const variedadSelect = document.getElementById('variedad');
-    const productoHidden = document.getElementById('producto_maestro_hidden');
-    
-    const producto = productoSelect.value;
-    productoHidden.value = producto;
-    
-    // Limpiar select de variedades
-    variedadSelect.innerHTML = '<option value="">Seleccionar variedad...</option>';
-    
-    if (producto && productosConVariedades[producto]) {
-        // Habilitar select y cargar variedades
-        variedadSelect.disabled = false;
-        
-        productosConVariedades[producto].forEach(variedad => {
-            const option = document.createElement('option');
-            option.value = variedad;
-            option.textContent = variedad;
-            variedadSelect.appendChild(option);
-        });
-    } else {
-        variedadSelect.disabled = true;
-    }
-    
-    // Limpiar cantidad
-    document.getElementById('cantidad_estimada').value = '';
+// Crear fila de variedad
+function crearFilaVariedad(variedades = [], seleccionada = '', cantidad = '') {
+    rowIndex++;
+    const container = document.getElementById('variedadesContainer');
+    const div = document.createElement('div');
+    div.className = 'variedad-row d-flex gap-3 align-items-center';
+    div.id = 'row-' + rowIndex;
+
+    let optionsHtml = '<option value="">Seleccionar variedad...</option>';
+    variedades.forEach(v => {
+        const selected = v === seleccionada ? 'selected' : '';
+        optionsHtml += `<option value="${v}" ${selected}>${v}</option>`;
+    });
+
+    div.innerHTML = `
+        <select class="form-select" name="variedad[]" required style="flex:2">${optionsHtml}</select>
+        <input type="number" class="form-control" name="cantidad_estimada[]" placeholder="Tallos" min="0" required value="${cantidad}" style="flex:1">
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="eliminarFila(${rowIndex})">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(div);
 }
+
+function eliminarFila(id) {
+    const row = document.getElementById('row-' + id);
+    if (row) row.remove();
+}
+
+// Cargar variedades cuando cambie el producto
+document.getElementById('producto_maestro_select').addEventListener('change', function() {
+    const producto = this.value;
+    const container = document.getElementById('variedadesContainer');
+    container.innerHTML = '';
+    rowIndex = 0;
+
+    if (producto && productosConVariedades[producto]) {
+        // Agregar una fila inicial con las variedades disponibles
+        crearFilaVariedad(productosConVariedades[producto]);
+    }
+});
+
+// Botón para añadir variedad
+document.getElementById('btnAgregarVariedad').addEventListener('click', function() {
+    const producto = document.getElementById('producto_maestro_select').value;
+    if (!producto) {
+        alert('Primero seleccione un producto maestro');
+        return;
+    }
+    crearFilaVariedad(productosConVariedades[producto] || []);
+});
 
 function editarEstimado(producto, variedad, cantidad) {
     // Seleccionar producto
-    document.getElementById('producto_maestro_select').value = producto;
-    cargarVariedades();
+    const productoSelect = document.getElementById('producto_maestro_select');
+    productoSelect.value = producto;
+    productoSelect.dispatchEvent(new Event('change'));
     
-    // Esperar un momento para que se carguen las variedades
+    // Esperar un momento para que se cargue la primera fila
     setTimeout(() => {
-        document.getElementById('variedad').value = variedad;
-        document.getElementById('cantidad_estimada').value = cantidad;
-        document.getElementById('cantidad_estimada').focus();
+        const container = document.getElementById('variedadesContainer');
+        // Limpiar y agregar una fila con los datos
+        container.innerHTML = '';
+        rowIndex = 0;
+        crearFilaVariedad(productosConVariedades[producto] || [], variedad, cantidad);
         
         // Scroll al formulario
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 100);
 }
 </script>
