@@ -706,6 +706,27 @@ function colapsarTodos() {
         text.textContent = 'Ver Detalle';
     });
 }
+
+// Auto-submit del filtro si la semana seleccionada no coincide con la URL
+document.addEventListener('DOMContentLoaded', function() {
+    const selectSemana = document.querySelector('select[name="semana"]');
+    if (selectSemana) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const semanaEnUrl = urlParams.get('semana');
+        const semanaSeleccionada = selectSemana.value;
+        
+        // Si no hay parámetro semana en la URL pero hay una semana seleccionada en el dropdown,
+        // redirigir automáticamente con el parámetro correcto
+        if (!semanaEnUrl && semanaSeleccionada) {
+            // Verificar si los datos mostrados corresponden a la semana seleccionada
+            const semanaActualBackend = '{{ semana_seleccionada }}';
+            if (semanaSeleccionada !== semanaActualBackend) {
+                // Redirigir con el parámetro de semana correcto
+                window.location.href = '{{ url_for("resumen") }}?semana=' + semanaSeleccionada;
+            }
+        }
+    }
+});
 </script>
 
 {% endblock %}

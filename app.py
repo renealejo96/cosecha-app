@@ -441,42 +441,37 @@ def resumen():
     # Cargar mapeo de variedades a productos maestros
     maestro_productos = cargar_maestro_productos()
     
-    # Obtener todos los registros
-    if semana_filtro:
-        # Filtrar por semana específica
-        registros = RegistroCosecha.query.all()
-        registros_filtrados = []
-        for r in registros:
-            semana_registro = formato_semana(r.fecha)
-            if semana_registro == semana_filtro:
-                registros_filtrados.append(r)
-        registros = registros_filtrados
-    else:
-        # Mostrar semana actual por defecto
-        fecha_hoy = datetime.now().date()
-        # Obtener lunes de la semana actual
-        dias_desde_lunes = fecha_hoy.weekday()
-        fecha_lunes = fecha_hoy - timedelta(days=dias_desde_lunes)
-        
-        registros = RegistroCosecha.query.filter(
-            RegistroCosecha.fecha >= fecha_lunes
-        ).all()
-        semana_filtro = formato_semana(fecha_hoy)
+    # Obtener todas las semanas disponibles en la BD primero
+    todos_registros = RegistroCosecha.query.all()
+    semanas_disponibles = set()
+    for r in todos_registros:
+        semanas_disponibles.add(formato_semana(r.fecha))
+    
+    # Ordenar semanas disponibles (más reciente primero)
+    semanas_ordenadas = sorted(list(semanas_disponibles), reverse=True)
+    
+    # Si no hay semana seleccionada, usar la más reciente disponible
+    if not semana_filtro:
+        if semanas_ordenadas:
+            semana_filtro = semanas_ordenadas[0]  # La más reciente
+        else:
+            semana_filtro = formato_semana(datetime.now().date())  # Fallback a semana actual
+    
+    # Filtrar registros por semana específica
+    registros = []
+    for r in todos_registros:
+        semana_registro = formato_semana(r.fecha)
+        if semana_registro == semana_filtro:
+            registros.append(r)
     
     # Estructura: {semana: {prod_maestro: {variedad: {dia_semana: total_tallos}}}}
     # Desglose: {semana: {prod_maestro: {variedad: {dia_semana: {modulo: total_tallos}}}}}
     datos_por_semana = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int))))
     desglose_modulos = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int)))))
-    semanas_disponibles = set()
     
     # Totales diarios entre todas las variedades
     totales_diarios = defaultdict(lambda: defaultdict(int))  # {semana: {dia_semana: total_tallos}}
-    
-    # Obtener todas las semanas disponibles en la BD
-    todos_registros = RegistroCosecha.query.all()
-    for r in todos_registros:
-        semanas_disponibles.add(formato_semana(r.fecha))
-    
+
     # Procesar registros filtrados
     for registro in registros:
         semana = formato_semana(registro.fecha)
@@ -493,9 +488,6 @@ def resumen():
         
         # Acumular totales diarios
         totales_diarios[semana][dia_semana] += registro.total_tallos
-    
-    # Ordenar semanas disponibles (más reciente primero)
-    semanas_ordenadas = sorted(list(semanas_disponibles), reverse=True)
     
     # Convertir defaultdict a dict normal
     datos_finales = {}
